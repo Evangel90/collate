@@ -14,7 +14,10 @@
     "build": "npm run build -w @collate/core && npm run build -w @collate/web",
     "dev": "npm run dev -w @collate/web",
     "test": "npm test -w @collate/core",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "wallets": "tsx scripts/wallets.ts",
+    "seed": "tsx scripts/seed.ts",
+    "verify": "tsx scripts/verify.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
