@@ -14,5 +14,11 @@ export default defineConfig({
       { find: /^@collate\/core$/, replacement: core("index.ts") },
     ],
   },
-  build: { target: "es2022", sourcemap: true },
+  build: {
+    target: "es2022",
+    sourcemap: true,
+    rollupOptions: {
+      output: { manualChunks: { react: ["react", "react-dom"], arkiv: ["@arkiv-network/sdk", "viem"] } },
+    },
+  },
 })
