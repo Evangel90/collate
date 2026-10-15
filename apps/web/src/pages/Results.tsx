@@ -1,7 +1,7 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
 import { renderWhere, type AggRow, type PanelState, type Row } from "@collate/core"
 import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { collate, deployment, nameOf, prefs } from "../lib/collate"
 import { exploreHref, figures, timeAgo, useElection } from "../lib/data"
 import { errorMessage, useWallet } from "../lib/wallet"
@@ -134,10 +134,10 @@ export function Results() {
 
       <div className="grid cols-2">
         <Disputes state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
-        <Latest election={election} coordinator={coordinator.address} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
+        <Latest version={state?.rows.length ?? 0} election={election} coordinator={coordinator.address} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
         <Missing units={info.units} state={state} />
         <Corrections state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
-        <Suspicious election={election} coordinator={coordinator.address} onProof={(title, rows) => setProof({ title, rows })} />
+        <Suspicious version={state?.rows.length ?? 0} election={election} coordinator={coordinator.address} onProof={(title, rows) => setProof({ title, rows })} />
         <Ignored state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
       </div>
 
@@ -250,12 +250,24 @@ function Disputes({ state, parties, onProof }: { state: PanelState | undefined; 
   )
 }
 
-function Latest({ election, coordinator, parties, onProof }: { election: string; coordinator: string; parties: Party[]; onProof: ProofHandler }) {
+/**
+ * Secondary panels run their own range queries but no live subscription of their own: they refresh
+ * when the main panel's trusted rows change, which keeps an idle page at zero queries.
+ */
+function useFollow(handle: { refresh: () => Promise<void> } | undefined, version: number) {
+  const [first] = useState(version)
+  useEffect(() => {
+    if (handle && version !== first) void handle.refresh()
+  }, [handle, version, first])
+}
+
+function Latest({ version, election, coordinator, parties, onProof }: { version: number; election: string; coordinator: string; parties: Party[]; onProof: ProofHandler }) {
   const [hours, setHours] = useState(1)
   // Rounded to the minute so the panel config, and with it the live subscription, stays stable.
   const since = useMemo(() => Math.floor(Date.now() / 60_000) * 60 - hours * 3600, [hours])
   const panel = useMemo(() => latestPanel(election, coordinator, since), [election, coordinator, since])
-  const { state } = usePanel(collate, panel)
+  const { state, handle } = usePanel(collate, panel)
+  useFollow(handle, version)
   const rows = [...(state?.current ?? [])].sort((a, b) => Number(b.attrs.submitted_at ?? 0) - Number(a.attrs.submitted_at ?? 0))
   return (
     <section className="card" aria-labelledby="latest-h">
@@ -347,10 +359,11 @@ function Corrections({ state, parties, onProof }: { state: PanelState | undefine
   )
 }
 
-function Suspicious({ election, coordinator, onProof }: { election: string; coordinator: string; onProof: ProofHandler }) {
+function Suspicious({ version, election, coordinator, onProof }: { version: number; election: string; coordinator: string; onProof: ProofHandler }) {
   const [threshold, setThreshold] = useState(8)
   const panel = useMemo(() => suspiciousPanel(election, coordinator, threshold), [election, coordinator, threshold])
-  const { state } = usePanel(collate, panel)
+  const { state, handle } = usePanel(collate, panel)
+  useFollow(handle, version)
   return (
     <section className="card" aria-labelledby="suspicious-h">
       <div className="card-head">

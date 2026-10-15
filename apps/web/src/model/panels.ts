@@ -41,7 +41,6 @@ export function latestPanel(election: string, coordinator: string, sinceSeconds:
     query: [resultTypes, eq("election", election), gt("submitted_at", v.u64(sinceSeconds))],
     trust: trustFor(election, coordinator),
     view: "table",
-    live: true,
   }
 }
 
@@ -53,7 +52,6 @@ export function suspiciousPanel(election: string, coordinator: string, threshold
     trust: trustFor(election, coordinator),
     supersedeField: "corrects",
     view: "table",
-    live: true,
   }
 }
 
