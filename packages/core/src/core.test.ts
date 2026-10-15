@@ -194,3 +194,16 @@ describe("share", () => {
     expect(() => decodePanel(encodePanel({ title: "x", query: [], view: "table" }))).toThrow(/no query/)
   })
 })
+
+describe("describeError", () => {
+  it("turns a wrapped HTTP 429 into a retry hint", async () => {
+    const { describeError } = await import("./errors")
+    const http = { status: 429, headers: new Headers({ "retry-after": "883" }), message: "HTTP request failed." }
+    const wrapped = { message: "outer", cause: http }
+    expect(describeError(wrapped)).toEqual({
+      message: expect.stringContaining("about 15 min"),
+      retryAfterSeconds: 883,
+    })
+    expect(describeError(new Error("boom\ndetails"))).toEqual({ message: "boom" })
+  })
+})

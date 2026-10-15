@@ -2,6 +2,7 @@ import type { Hex } from "viem"
 import { aggregate } from "./aggregate"
 import type { Clients } from "./client"
 import { findDisputes } from "./disputes"
+import { describeError } from "./errors"
 import { watch } from "./live"
 import { fetchAll, fetchMatchingMany } from "./query"
 import { supersede } from "./supersede"
@@ -59,9 +60,10 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   let inFlight: Promise<void> | undefined
   let again = false
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
-  // New entities are re-read in batches: quickly for trusted owners, lazily for everyone else.
-  const queued = { fast: new Set<Hex>(), slow: new Set<Hex>() }
-  const timers: { fast?: ReturnType<typeof setTimeout>; slow?: ReturnType<typeof setTimeout> } = {}
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  // New entities from trusted owners are re-read in one batch per flush.
+  const queued = new Set<Hex>()
+  let flushTimer: ReturnType<typeof setTimeout> | undefined
 
   const set = (patch: Partial<PanelState>) => {
     if (destroyed) return
@@ -107,7 +109,12 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
           await load()
         } while (again && !destroyed)
       } catch (error) {
-        set({ status: "error", error: error instanceof Error ? error.message : String(error) })
+        const { message, retryAfterSeconds } = describeError(error)
+        set({ status: "error", error: message })
+        if (retryAfterSeconds !== undefined) {
+          clearTimeout(retryTimer)
+          retryTimer = setTimeout(() => void refresh(), Math.min(retryAfterSeconds, 900) * 1000)
+        }
       } finally {
         inFlight = undefined
       }
@@ -123,28 +130,27 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   function onCreated(key: Hex, owner: string) {
     const trust = state.trust
     if (trust?.roots.includes(owner as Hex)) return scheduleRefresh() // the trust list may have changed
-    const lane = trusts(trust, owner) ? "fast" : config.includeIgnored ? "slow" : undefined
-    if (!lane) return
-    queued[lane].add(key)
-    timers[lane] ??= setTimeout(() => void flush(lane), lane === "fast" ? 250 : 3000)
+    // Arkiv is shared and busy: entities from untrusted owners are never re-read live, which keeps
+    // an idle viewer of a trusted panel at zero queries. The ignored list comes with each snapshot.
+    if (trust && !trust.members.has(owner)) return
+    queued.add(key)
+    // Without a trust list any event could match, so batch those more slowly.
+    flushTimer ??= setTimeout(() => void flush(), trust ? 250 : 5000)
   }
 
-  async function flush(lane: "fast" | "slow") {
-    timers[lane] = undefined
-    const known = new Set([...state.rows, ...state.ignored].map((r) => r.key))
-    const keys = [...queued[lane]].filter((k) => !known.has(k))
-    queued[lane].clear()
+  async function flush() {
+    flushTimer = undefined
+    const known = new Set(state.rows.map((r) => r.key))
+    const keys = [...queued].filter((k) => !known.has(k))
+    queued.clear()
     if (keys.length === 0 || destroyed) return
     try {
       // Ask the node which new entities match this panel, then re-check each creator.
       const found = await fetchMatchingMany(clients.http, keys, config.query)
-      const fresh = found.filter((r) => !state.rows.some((x) => x.key === r.key) && !state.ignored.some((x) => x.key === r.key))
-      const trusted = fresh.filter((r) => trusts(state.trust, r.creator))
-      const ignored = config.includeIgnored ? fresh.filter((r) => !trusts(state.trust, r.creator)) : []
-      if (trusted.length) recompute([...state.rows, ...trusted], [...state.ignored, ...ignored])
-      else if (ignored.length) set({ ignored: [...state.ignored, ...ignored] })
+      const fresh = found.filter((r) => !known.has(r.key) && trusts(state.trust, r.creator))
+      if (fresh.length) recompute([...state.rows, ...fresh])
     } catch (error) {
-      set({ live: "error", error: error instanceof Error ? error.message : String(error) })
+      set({ live: "error", error: describeError(error).message })
     }
   }
 
@@ -195,8 +201,8 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     destroy() {
       destroyed = true
       clearTimeout(refreshTimer)
-      clearTimeout(timers.fast)
-      clearTimeout(timers.slow)
+      clearTimeout(flushTimer)
+      clearTimeout(retryTimer)
       unwatch?.()
       listeners.clear()
     },

@@ -36,7 +36,7 @@ export function createClients(options: CollateOptions = {}): Clients {
   const rpcWs = options.rpcWs ?? (options.chain ? undefined : TIRAMISU.rpcWs)
   const base = (options.explorer ?? TIRAMISU.explorer).replace(/\/$/, "")
 
-  const httpClient = createPublicClient({ chain, transport: http(rpcHttp), cacheTime: 0 })
+  const httpClient = createPublicClient({ chain, transport: http(rpcHttp, { retryCount: 1 }), cacheTime: 0 })
   let wsClient: PublicArkivClient | undefined
   return {
     chain,

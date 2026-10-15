@@ -16,6 +16,7 @@ export { watch, type LiveHandlers } from "./live"
 export { decodePanel, encodePanel, shareUrl } from "./share"
 export { computePanel, createPanel, type PanelHandle } from "./panel"
 export { decodeAttr, field, num, toRow } from "./rows"
+export { describeError, type ReadError } from "./errors"
 
 /**
  * Entry point: one set of clients, many panels.
