@@ -26,6 +26,8 @@ export function resultsPanel(election: string, coordinator: string, groupBy: "st
     view: "bar",
     live: true,
     includeIgnored: true,
+    // Generic labels: party names live in each election's payload, which this config does not read.
+    labels: { votes_a: "Party A votes", votes_b: "Party B votes", votes_c: "Party C votes", rejected: "Rejected", accredited: "Accredited" },
   }
 }
 

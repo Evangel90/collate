@@ -141,6 +141,7 @@ export function Results() {
             groups={state.groups}
             total={state.total}
             groupLabel={groupBy === "lga" ? "LGA" : groupBy}
+            countLabel="Units"
             columns={[...parties.map((p) => ({ field: p.field, label: p.short })), { field: "rejected", label: "Rejected" }]}
             onSelect={(g) => proofFor(`${g.group}: who posted these numbers`, g.keys)}
           />

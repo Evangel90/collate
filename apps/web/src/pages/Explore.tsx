@@ -43,17 +43,30 @@ export function Explore({ params }: { params: URLSearchParams }) {
     setError(initial.error)
   }, [initial])
 
-  function run() {
+  /** Validates a config, renders it, and puts it in the URL so the page can be shared. */
+  function show(candidate: Panel) {
     try {
-      const next = decodePanel(encodePanel(JSON.parse(text) as Panel))
+      const next = decodePanel(encodePanel(candidate))
       renderWhere(next.query) // throws on an invalid predicate before any request
       setPanel(next)
+      setText(JSON.stringify(next, null, 2))
       setError(undefined)
       window.location.hash = href("/explore", { panel: encodePanel(next) }).slice(1)
     } catch (e) {
       setError((e as Error).message)
     }
   }
+
+  function run() {
+    try {
+      show(JSON.parse(text) as Panel)
+    } catch (e) {
+      setError(`The config is not valid JSON: ${(e as Error).message}`)
+    }
+  }
+
+  // Which preset, if any, the current panel is: keeps the dropdown showing the choice.
+  const presetIndex = PRESETS.findIndex((p) => JSON.stringify(p.panel) === JSON.stringify(panel))
 
   return (
     <div className="grid">
@@ -71,14 +84,16 @@ export function Explore({ params }: { params: URLSearchParams }) {
             <CardTitle icon="edit">Panel config</CardTitle>
             <select
               className="btn btn-small"
-              value=""
+              value={presetIndex >= 0 ? String(presetIndex) : ""}
               onChange={(e) => {
                 const preset = PRESETS[Number(e.target.value)]
-                if (preset) setText(JSON.stringify(preset.panel, null, 2))
+                if (preset) show(preset.panel)
               }}
               aria-label="Load an example"
             >
-              <option value="">Load an example…</option>
+              <option value="" disabled>
+                {presetIndex >= 0 ? "Load an example…" : "Custom config"}
+              </option>
               {PRESETS.map((p, i) => (
                 <option key={p.label} value={i}>
                   {p.label}
