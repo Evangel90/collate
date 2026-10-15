@@ -69,7 +69,7 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
     const mine = [wallet.address]
     const [e, a, u] = await Promise.all([
       collate.fetchAll({ where: [eq("type", "election"), eq("election", election)], creators: mine }),
-      collate.fetchAll({ where: [eq("type", "accreditation"), eq("election", election)], creators: mine }),
+      collate.fetchAll({ where: [eq("type", "accreditation"), eq("election", election)], creators: mine, payload: true }),
       collate.fetchAll({ where: [eq("type", "unit"), eq("election", election)], creators: mine }),
     ])
     setElectionRow(e.rows[0] ?? null)

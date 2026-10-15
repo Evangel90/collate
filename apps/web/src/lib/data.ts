@@ -1,4 +1,4 @@
-import { encodePanel, eq, type Panel, type Row } from "@collate/core"
+import { describeError, encodePanel, eq, type Panel, type Row } from "@collate/core"
 import { useEffect, useState } from "react"
 import type { Party } from "../model/schema"
 import { collate } from "./collate"
@@ -19,16 +19,19 @@ export type ElectionInfo = {
   error?: string
 }
 
-/** Q1 and Q2: the election and its polling units, as the chosen coordinator registered them. */
-export function useElection(election: string, coordinator: string): ElectionInfo {
+/**
+ * Q1 and Q2: the election and its polling units, as the chosen coordinator registered them. Unit
+ * payloads (display names) are fetched only when asked for, since every byte read is metered.
+ */
+export function useElection(election: string, coordinator: string, unitNames = false): ElectionInfo {
   const [info, setInfo] = useState<ElectionInfo>({ row: undefined, name: election, parties: DEFAULT_PARTIES, units: [], loading: true })
 
   useEffect(() => {
     let cancelled = false
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }))
     Promise.all([
-      collate.fetchAll({ where: [eq("type", "election"), eq("election", election)], creators: [coordinator] }),
-      collate.fetchAll({ where: [eq("type", "unit"), eq("election", election)], creators: [coordinator] }),
+      collate.fetchAll({ where: [eq("type", "election"), eq("election", election)], creators: [coordinator], payload: true }),
+      collate.fetchAll({ where: [eq("type", "unit"), eq("election", election)], creators: [coordinator], payload: unitNames }),
     ])
       .then(([e, u]) => {
         if (cancelled) return
@@ -42,11 +45,11 @@ export function useElection(election: string, coordinator: string): ElectionInfo
           loading: false,
         })
       })
-      .catch((error) => !cancelled && setInfo((prev) => ({ ...prev, loading: false, error: String(error?.message ?? error) })))
+      .catch((error) => !cancelled && setInfo((prev) => ({ ...prev, loading: false, error: describeError(error).message })))
     return () => {
       cancelled = true
     }
-  }, [election, coordinator])
+  }, [election, coordinator, unitNames])
 
   return info
 }
