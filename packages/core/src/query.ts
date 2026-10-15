@@ -66,6 +66,17 @@ async function walk(client: PublicArkivClient, where: Where[], block: bigint, ma
   return rows
 }
 
+/** Fetches those of `keys` that still match the predicates, in one query per 25 keys. */
+export async function fetchMatchingMany(client: PublicArkivClient, keys: readonly string[], where: Where[]): Promise<Row[]> {
+  const rows: Row[] = []
+  for (let i = 0; i < keys.length; i += CREATOR_CHUNK) {
+    const byKey = keys.slice(i, i + CREATOR_CHUNK).map((k): Where => ({ op: "eq", field: "$key", value: { type: "key", value: k } }))
+    const anyKey: Where = byKey.length === 1 ? byKey[0]! : { op: "or", any: byKey }
+    rows.push(...(await fetchAll(client, { where: [anyKey, ...where] })).rows)
+  }
+  return rows
+}
+
 /** Fetches one entity by key if it still matches the predicates; `undefined` otherwise. */
 export async function fetchMatching(
   client: PublicArkivClient,

@@ -3,7 +3,7 @@ import { aggregate } from "./aggregate"
 import type { Clients } from "./client"
 import { findDisputes } from "./disputes"
 import { watch } from "./live"
-import { fetchAll, fetchMatching } from "./query"
+import { fetchAll, fetchMatchingMany } from "./query"
 import { supersede } from "./supersede"
 import { partitionByTrust, resolveTrust } from "./trust"
 import type { Panel, PanelState, Row, TrustSet } from "./types"
@@ -59,6 +59,9 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   let inFlight: Promise<void> | undefined
   let again = false
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
+  // New entities are re-read in batches: quickly for trusted owners, lazily for everyone else.
+  const queued = { fast: new Set<Hex>(), slow: new Set<Hex>() }
+  const timers: { fast?: ReturnType<typeof setTimeout>; slow?: ReturnType<typeof setTimeout> } = {}
 
   const set = (patch: Partial<PanelState>) => {
     if (destroyed) return
@@ -117,17 +120,29 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     refreshTimer = setTimeout(() => void refresh(), 400)
   }
 
-  async function onCreated(key: Hex, owner: string) {
+  function onCreated(key: Hex, owner: string) {
     const trust = state.trust
     if (trust?.roots.includes(owner as Hex)) return scheduleRefresh() // the trust list may have changed
-    if (!trusts(trust, owner) && !config.includeIgnored) return
-    if (state.rows.some((r) => r.key === key) || state.ignored.some((r) => r.key === key)) return
+    const lane = trusts(trust, owner) ? "fast" : config.includeIgnored ? "slow" : undefined
+    if (!lane) return
+    queued[lane].add(key)
+    timers[lane] ??= setTimeout(() => void flush(lane), lane === "fast" ? 250 : 3000)
+  }
+
+  async function flush(lane: "fast" | "slow") {
+    timers[lane] = undefined
+    const known = new Set([...state.rows, ...state.ignored].map((r) => r.key))
+    const keys = [...queued[lane]].filter((k) => !known.has(k))
+    queued[lane].clear()
+    if (keys.length === 0 || destroyed) return
     try {
-      // Ask the node whether the new entity matches this panel, then re-check its creator.
-      const row = await fetchMatching(clients.http, key, config.query)
-      if (!row) return
-      if (trusts(state.trust, row.creator)) recompute([...state.rows, row])
-      else if (config.includeIgnored) set({ ignored: [...state.ignored, row] })
+      // Ask the node which new entities match this panel, then re-check each creator.
+      const found = await fetchMatchingMany(clients.http, keys, config.query)
+      const fresh = found.filter((r) => !state.rows.some((x) => x.key === r.key) && !state.ignored.some((x) => x.key === r.key))
+      const trusted = fresh.filter((r) => trusts(state.trust, r.creator))
+      const ignored = config.includeIgnored ? fresh.filter((r) => !trusts(state.trust, r.creator)) : []
+      if (trusted.length) recompute([...state.rows, ...trusted], [...state.ignored, ...ignored])
+      else if (ignored.length) set({ ignored: [...state.ignored, ...ignored] })
     } catch (error) {
       set({ live: "error", error: error instanceof Error ? error.message : String(error) })
     }
@@ -149,7 +164,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     set({ live: "connecting" })
     try {
       unwatch = watch(client, {
-        onCreated: (key, owner) => void onCreated(key, owner),
+        onCreated,
         onDeleted,
         onExtended,
         onError: (error) => set({ live: "error", error: error.message }),
@@ -180,6 +195,8 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     destroy() {
       destroyed = true
       clearTimeout(refreshTimer)
+      clearTimeout(timers.fast)
+      clearTimeout(timers.slow)
       unwatch?.()
       listeners.clear()
     },
