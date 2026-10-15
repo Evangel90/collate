@@ -1,6 +1,7 @@
 import { collateCss } from "@collate/core/ui"
 import { href, useRoute } from "./lib/router"
 import { Coordinate } from "./pages/Coordinate"
+import { Explore } from "./pages/Explore"
 import { Observe } from "./pages/Observe"
 import { Results } from "./pages/Results"
 
@@ -8,6 +9,7 @@ const PAGES = [
   { path: "/", label: "Results" },
   { path: "/observe", label: "Observer" },
   { path: "/coordinate", label: "Coordinator" },
+  { path: "/explore", label: "collate-core" },
 ]
 
 export function App() {
@@ -15,6 +17,7 @@ export function App() {
   const page =
     route.path === "/observe" ? <Observe /> :
     route.path === "/coordinate" ? <Coordinate /> :
+    route.path === "/explore" ? <Explore params={route.params} /> :
     <Results />
 
   return (
