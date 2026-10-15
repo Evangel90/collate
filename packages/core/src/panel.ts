@@ -4,7 +4,7 @@ import type { Clients } from "./client"
 import { findDisputes } from "./disputes"
 import { describeError } from "./errors"
 import { watch } from "./live"
-import { fetchAll, fetchMatchingMany } from "./query"
+import { fetchAll, fetchMatchingMany, headBlock } from "./query"
 import { supersede } from "./supersede"
 import { partitionByTrust, resolveTrust } from "./trust"
 import type { Panel, PanelState, Row, TrustSet } from "./types"
@@ -77,20 +77,20 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   const trusts = (trust: TrustSet | undefined, creator: string) => !trust || trust.members.has(creator)
 
   async function load() {
-    const block = await clients.http.getBlockNumber({ cacheTime: 0 })
+    const block = await headBlock(clients.http)
     let trust: TrustSet | undefined
     if (config.trust) trust = (await resolveTrust(clients.http, config.trust, block)).trust
 
     let rows: Row[]
     let ignored: Row[] = []
     if (!trust) {
-      rows = (await fetchAll(clients.http, { where: config.query, atBlock: block })).rows
+      rows = (await fetchAll(clients.http, { where: config.query, atBlock: block, payload: config.payload })).rows
     } else if (config.includeIgnored) {
-      const all = (await fetchAll(clients.http, { where: config.query, atBlock: block })).rows
+      const all = (await fetchAll(clients.http, { where: config.query, atBlock: block, payload: config.payload })).rows
       ;({ trusted: rows, ignored } = partitionByTrust(all, trust))
     } else {
       const creators = [...trust.members.keys()]
-      rows = (await fetchAll(clients.http, { where: config.query, creators, atBlock: block })).rows
+      rows = (await fetchAll(clients.http, { where: config.query, creators, atBlock: block, payload: config.payload })).rows
     }
     set({ block })
     recompute(rows, ignored, trust)
@@ -146,7 +146,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     if (keys.length === 0 || destroyed) return
     try {
       // Ask the node which new entities match this panel, then re-check each creator.
-      const found = await fetchMatchingMany(clients.http, keys, config.query)
+      const found = await fetchMatchingMany(clients.http, keys, config.query, config.payload)
       const fresh = found.filter((r) => !known.has(r.key) && trusts(state.trust, r.creator))
       if (fresh.length) recompute([...state.rows, ...fresh])
     } catch (error) {

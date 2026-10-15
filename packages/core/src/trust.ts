@@ -49,6 +49,7 @@ export async function resolveTrust(
     where: config.listQuery,
     creators: config.rootCreators,
     atBlock,
+    payload: true,
   })
   return { trust: buildTrust(config, rows), block }
 }

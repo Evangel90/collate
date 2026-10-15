@@ -49,8 +49,8 @@ export function toRow(entity: FullEntity): Row {
     createdAt: entity.createdAt,
     expiresAt: entity.expiresAt,
     flags: {
-      readonly: entity.creationFlags.readonly,
-      permissionlessExtension: entity.creationFlags.permissionlessExtension,
+      readonly: entity.creationFlags?.readonly ?? false,
+      permissionlessExtension: entity.creationFlags?.permissionlessExtension ?? false,
     },
     attrs,
     payload: decodePayload(entity),

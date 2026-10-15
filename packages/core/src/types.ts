@@ -80,6 +80,8 @@ export type Panel = {
   live?: boolean
   /** Also fetch matching entities from untrusted creators, to show what was ignored. */
   includeIgnored?: boolean
+  /** Fetch payloads too (default off: Arkiv reads are metered, so a panel fetches only attributes). */
+  payload?: boolean
   /** Human labels for attribute names, e.g. `{ votes_a: "Party A" }`. */
   labels?: Record<string, string>
 }
