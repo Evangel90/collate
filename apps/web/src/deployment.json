@@ -1,0 +1,93 @@
+{
+  "network": {
+    "name": "Tiramisu",
+    "chainId": 7738577
+  },
+  "election": "demo-2027",
+  "coordinators": [
+    {
+      "id": "a",
+      "name": "Observer Group A",
+      "address": "0x86d0886835480cfee3a0dbfb7814434dab851381",
+      "observers": [
+        "Observer 01",
+        "Observer 02",
+        "Observer 03",
+        "Observer 04",
+        "Observer 05",
+        "Observer 06",
+        "Observer 07",
+        "Observer 08"
+      ]
+    },
+    {
+      "id": "b",
+      "name": "Observer Group B",
+      "address": "0xb926a5eeefbde3dcb4ac648a76031c69d815d6fd",
+      "observers": [
+        "Observer 05",
+        "Observer 06",
+        "Observer 07",
+        "Observer 08",
+        "Observer 09",
+        "Observer 10",
+        "Observer 11",
+        "Observer 12"
+      ]
+    }
+  ],
+  "observers": [
+    {
+      "alias": "Observer 01",
+      "address": "0x4381e820aa2064b8069a40b28275e9d7c75a23cd"
+    },
+    {
+      "alias": "Observer 02",
+      "address": "0x7acbb116475e811d0852351c339ef81742a8b17d"
+    },
+    {
+      "alias": "Observer 03",
+      "address": "0xc8cdac4475ebbaa526ed2336abcb0745b7a929cc"
+    },
+    {
+      "alias": "Observer 04",
+      "address": "0x46b9b7290cbe5aec90bc7926ea761b618ae489cc"
+    },
+    {
+      "alias": "Observer 05",
+      "address": "0x4c186952a28be10ee3ec54c95c992219f514e26f"
+    },
+    {
+      "alias": "Observer 06",
+      "address": "0x7442ebc8ab204017d4ee2eda57ae11e695728574"
+    },
+    {
+      "alias": "Observer 07",
+      "address": "0x932a2f8a2fd6185ae9bac7840d0257c30ea03eae"
+    },
+    {
+      "alias": "Observer 08",
+      "address": "0x107b4facbfd36cb9e30a181b4ba04448b217aa5a"
+    },
+    {
+      "alias": "Observer 09",
+      "address": "0xf2b9d24527198b447eea8891e85fff6a551cf6e5"
+    },
+    {
+      "alias": "Observer 10",
+      "address": "0x86c853e970c882dd78b026f5135b0782b360bb0d"
+    },
+    {
+      "alias": "Observer 11",
+      "address": "0x4563504c13e20b9d635783ed4a61abc17903ecf8"
+    },
+    {
+      "alias": "Observer 12",
+      "address": "0xe99912b464d3c01cd680bdc6ef4bc6f5555f4a87"
+    }
+  ],
+  "unaccredited": {
+    "alias": "Unaccredited wallet",
+    "address": "0xaae64908f5c22a8327764a93907aafd4e7c3ab97"
+  }
+}

@@ -5,6 +5,7 @@
 import { existsSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { generatePrivateKey } from "viem/accounts"
+import { writeDeployment } from "./deployment"
 import { loadWallets } from "./env"
 
 const ENV_PATH = resolve(import.meta.dirname, "../.env")
@@ -24,6 +25,7 @@ if (!existsSync(ENV_PATH)) {
 }
 
 const w = loadWallets()
+writeDeployment(w)
 console.log("Role                 Address")
 console.log(`Coordinator A        ${w.coordinatorA.address}   (also funds the others)`)
 console.log(`Coordinator B        ${w.coordinatorB.address}`)
