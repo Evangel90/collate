@@ -9,12 +9,15 @@ export function GroupTable({
   total,
   columns,
   groupLabel,
+  countLabel = "Count",
   onSelect,
 }: {
   groups: AggRow[]
   total?: AggRow
   columns: Column[]
   groupLabel: string
+  /** Header for the per-group entity count. */
+  countLabel?: string
   onSelect?: (group: AggRow) => void
 }) {
   return (
@@ -23,7 +26,7 @@ export function GroupTable({
         <thead>
           <tr>
             <th scope="col">{groupLabel}</th>
-            <th scope="col" className="collate-num">Units</th>
+            <th scope="col" className="collate-num">{countLabel}</th>
             {columns.map((c) => (
               <th key={c.field} scope="col" className="collate-num">
                 {c.label}
