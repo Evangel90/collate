@@ -6,7 +6,7 @@ Collate is a public, tamper-evident election results board built on [Arkiv](http
 
 Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance** and **Open Source**. All data is synthetic: a fictional election, fictional parties and units, and observers known only by wallet and alias.
 
-- **Live app:** _added after deployment_
+- **Live app:** https://collate-silk.vercel.app (static, no login, reads straight from Arkiv)
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
 - **Friction report:** [`arkiv/friction.md`](arkiv/friction.md)
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
