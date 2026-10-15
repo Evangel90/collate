@@ -1,0 +1,59 @@
+# Arkiv friction log
+
+Kept during the build, newest last. Smooth paths are logged with the same detail as problems. Environment unless noted: `@arkiv-network/sdk` 0.8.1, viem 2.57.7, Node 26.3.0, npm 11.16.0, macOS (Darwin 25.6), Tiramisu chain 7738577.
+
+### 1. SDK ships its TypeScript source: API names verifiable on day one (smooth)
+- Surface: TypeScript SDK `@arkiv-network/sdk` 0.8.1
+- Expected: to have to guess between the 0.6 names (`buildQuery`, `watchEntities`) seen in older material and the 0.8 names.
+- Actual: the package includes `src/` alongside `dist/`, with JSDoc on every action. `select().where().createdBy().atBlock().limit().fetch()`, `QueryResult.next()`, `extendEntity`, `executeBatch`, `watchEntityEvents` and `ExpirationTime` were all confirmed by reading `node_modules/@arkiv-network/sdk/src` before any code was written.
+- Steps to reproduce: `npm install --save-exact @arkiv-network/sdk@0.8.1 viem`, then `ls node_modules/@arkiv-network/sdk/src/actions`.
+- Workaround: none needed.
+- Suggested fix: keep shipping `src/`; it made the version check trivial.
+
+### 2. One query can filter by several creators (smooth)
+- Surface: TypeScript SDK 0.8.1 query builder, JSON-RPC `arkiv_query`
+- Expected: unsure whether `$creator` could appear inside an `OR`; `createdBy()` takes a single address and replaces any earlier call.
+- Actual: `where(eq("type", "unit_result"), or(eq("$creator", addr(a)), eq("$creator", addr(b))))` renders as `type = str('unit_result') AND ($creator = addr(0x…01) OR $creator = addr(0x…02))` and the node accepts it (0 rows, no error) at block 615439.
+- Steps to reproduce: see the query above with any two addresses; `await client.select({ key: true }).where(...).limit(5).fetch()`.
+- Workaround: none needed. collate-core OR-s up to 25 creators per query and runs the chunks in parallel at one pinned block.
+- Suggested fix: mention multi-creator `OR` in the `createdBy()` JSDoc, since its "calling it again replaces the filter" note suggests a single creator is the only option.
+
+### 3. `addr()` checksums addresses in rendered query text
+- Surface: TypeScript SDK 0.8.1 (`@arkiv-network/sdk/query`, `Expression.toString()`)
+- Expected: `eq("$creator", addr("0x…aa"))` to render the address as given (lowercase).
+- Actual: it renders the EIP-55 checksummed form, e.g. `addr(0x00…00AA)`. A unit test comparing rendered text to a lowercase string failed.
+- Steps to reproduce: `import { addr } from "@arkiv-network/sdk/attr"; import { eq } from "@arkiv-network/sdk/query"; eq("$creator", addr("0x00000000000000000000000000000000000000aa")).toString()`.
+- Workaround: compare rendered queries case-insensitively.
+- Suggested fix: note the normalisation in the `addr` JSDoc. Not a bug; matching is by value either way.
+
+### 4. SDK logger touches `globalThis.localStorage` in Node, which Node 26 warns about
+- Surface: TypeScript SDK 0.8.1, `src/utils/logger.ts`
+- Expected: a Node script that runs a query to print nothing but its own output.
+- Actual: the first query prints `ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.` Importing the SDK alone does not trigger it; `getLogger` → `getDebugEnv()` does, when `DEBUG` is unset, because Node ≥ 25 defines `localStorage` on `globalThis` and warns on access.
+- Steps to reproduce: Node 26.3.0, no `DEBUG` env; run `await createPublicClient({ chain: tiramisu, transport: http() }).select({ key: true }).where(eq("type", "x")).fetch()`.
+- Workaround (both verified): `NODE_OPTIONS=--no-experimental-webstorage`, or set `DEBUG` to any non-empty value (e.g. `DEBUG=none`) so the logger never reaches the `localStorage` branch.
+- Suggested fix: check `typeof window !== "undefined"` (or `typeof process === "undefined"`) before reading `localStorage` in `getDebugEnv()`.
+
+### 5. Entity events carry keys, not attributes: a read per event (smooth, documented)
+- Surface: TypeScript SDK 0.8.1 `watchEntityEvents`
+- Expected: to filter live events by attribute (e.g. `type = unit_result`).
+- Actual: `EntityCreated` carries `entityKey`, `owner`, `expiresAt` and `creationFlags` only; the JSDoc says so plainly. collate-core re-reads each candidate with `$key = key(k) AND <panel query>`, so the node itself decides whether it belongs to the panel, then re-checks `$creator`.
+- Steps to reproduce: `client.watchEntityEvents({ onEntityCreated: console.log })` on a WebSocket client.
+- Workaround: the re-read above; events from untrusted owners are skipped before any read.
+- Suggested fix: optional attribute filter on the subscription, or include attributes in the event, to save one round trip per event.
+
+### 6. Faucet needs a browser wallet: no scripted funding for seed wallets
+- Surface: Hub faucet, https://hub.arkiv.network/faucet
+- Expected: a way to fund a freshly generated seed wallet from a script or by pasting an address.
+- Actual: the page connects a browser wallet and allows "one claim per wallet, per cooldown window"; the cooldown length is not stated on the page. A seed script with 15 fresh wallets can't fund itself.
+- Steps to reproduce: open the faucet page without a wallet extension.
+- Workaround: fund one wallet (Coordinator A) by hand; `scripts/seed.ts` sends a share of its GLM to the other 14 wallets with plain value transfers.
+- Suggested fix: allow pasting an address, and state the amount and cooldown.
+
+### 7. Explorer returns HTTP 200 for every path
+- Surface: Block explorer, https://tiramisu.explorer.arkiv.network
+- Expected: a 404 for a malformed entity or transaction route, so link checks can validate the links Collate generates.
+- Actual: `/entity/0x01`, `/tx/0x01` and `/address/<addr>` all return 200 (a single-page app shell); validity is only visible after JavaScript runs.
+- Steps to reproduce: `curl -s -o /dev/null -w "%{http_code}" https://tiramisu.explorer.arkiv.network/entity/0x01`.
+- Workaround: check links by eye in a browser.
+- Suggested fix: server-side 404 for malformed keys and hashes.
