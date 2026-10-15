@@ -4,6 +4,7 @@ import { expiresIn, usePanel } from "@collate/core/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { isAddress } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"
+import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES } from "../lib/data"
 import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
 import { resultsPanel } from "../model/panels"
@@ -29,7 +30,7 @@ export function Coordinate() {
       </section>
       {!wallet ? (
         <section className="card">
-          <h2>Connect your coordinator wallet</h2>
+          <CardTitle icon="lock">Connect your coordinator wallet</CardTitle>
           <div className="row">
             <button type="button" className="btn btn-primary" onClick={() => void connect()}>
               Connect wallet
@@ -41,7 +42,7 @@ export function Coordinate() {
         <>
           <section className="card">
             <div className="card-head">
-              <h2>Election</h2>
+              <CardTitle icon="database">Election</CardTitle>
               <label className="field" style={{ minWidth: 220 }}>
                 <span className="sr-only">Election id</span>
                 <input value={election} onChange={(e) => setElection(e.target.value.trim())} aria-label="Election id" />
@@ -82,7 +83,7 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
     void load()
   }, [load])
 
-  if (electionRow === undefined) return <p className="muted">Reading your election from Arkiv…</p>
+  if (electionRow === undefined) return <section className="card"><Skeleton lines={3} /></section>
   if (electionRow === null) return <CreateElection wallet={wallet} election={election} onCreated={load} />
 
   const closesAt = Number(electionRow.attrs.closes_at ?? 0)
@@ -123,7 +124,7 @@ function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; elect
 
   return (
     <section className="card">
-      <h2>Create election “{election}”</h2>
+      <CardTitle icon="upload">Create election “{election}”</CardTitle>
       <p className="muted">You have no election with this id yet. It will be created by your wallet together with its units, in one batch.</p>
       <div className="form">
         <div className="field-row">
@@ -190,7 +191,7 @@ function Accreditations({ wallet, election, closesAt, rows, block, onChange }: {
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Accredited observers</h2>
+        <CardTitle icon="shield">Accredited observers</CardTitle>
         <span className="pill">{rows.length}</span>
       </div>
       <p className="muted">An accreditation is a lease: it expires {LEASE_DAYS} days after counting closes unless you extend it. Revoking deletes it.</p>
@@ -251,7 +252,7 @@ function MissingUnits({ wallet, election, units }: { wallet: Wallet; election: s
   return (
     <section className="card">
       <div className="card-head">
-        <h2>Units with no result from your observers</h2>
+        <CardTitle icon="map">Units with no result from your observers</CardTitle>
         <span className="pill">{state?.status === "ready" ? `${missing.length} of ${units.length}` : "…"}</span>
       </div>
       <p className="small">{missing.map((u) => String(u.attrs.unit_code)).join(", ") || "Every unit has a result."}</p>

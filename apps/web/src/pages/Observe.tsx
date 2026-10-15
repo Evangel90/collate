@@ -3,6 +3,7 @@ import { expiresIn } from "@collate/core/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { Hex } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"
+import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES, figures, useElection } from "../lib/data"
 import { sha256File } from "../lib/hash"
 import { href } from "../lib/router"
@@ -53,7 +54,7 @@ export function Observe() {
 
       {!wallet ? (
         <section className="card">
-          <h2>1. Connect the wallet your coordinator accredited</h2>
+          <CardTitle icon="lock">Connect the wallet your coordinator accredited</CardTitle>
           <p className="muted">Collate asks your wallet to switch to the Arkiv Tiramisu testnet (chain 7738577).</p>
           <div className="row">
             <button type="button" className="btn btn-primary" onClick={() => void connect()}>
@@ -82,13 +83,13 @@ export function Observe() {
 function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet; accreditations: Accreditation[] | undefined; block?: bigint }) {
   return (
     <section className="card">
-      <h2>1. Accreditation</h2>
+      <CardTitle icon="shield">Accreditation</CardTitle>
       <p className="small">
         Connected as <span className="mono">{wallet.address}</span>
         {nameOf(wallet.address) ? ` (${nameOf(wallet.address)})` : ""}
       </p>
       {accreditations === undefined ? (
-        <p className="muted">Checking for a live accreditation on Arkiv…</p>
+        <Skeleton lines={2} />
       ) : accreditations.length === 0 ? (
         <p className="notice notice-warn">
           No live accreditation for this wallet in {deployment.election}. Submitting is disabled: results from unaccredited wallets
@@ -168,7 +169,7 @@ function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; c
   return (
     <>
       <section className="card">
-        <h2>2. {corrects ? `Correct your result for ${unitCode}` : "Enter the unit's result"}</h2>
+        <CardTitle icon={corrects ? "edit" : "upload"}>{corrects ? `Correct your result for ${unitCode}` : "Enter the unit's result"}</CardTitle>
         {corrects && (
           <p className="notice notice-warn">
             Posting a correction for entity <span className="mono">{corrects.key.slice(0, 12)}…</span>. The original stays public;
@@ -233,7 +234,7 @@ function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; c
 
       {reviewing && unit && (
         <section className="card">
-          <h2>3. Review and sign</h2>
+          <CardTitle icon="eye">Review and sign</CardTitle>
           <p className="small">
             {corrects ? "Correction" : "Result"} for <b>{unitCode}</b> ({String(unit.attrs.ward)}, {String(unit.attrs.lga)}, {String(unit.attrs.state)})
           </p>
@@ -267,7 +268,7 @@ function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; c
       )}
 
       <section className="card">
-        <h2>Your posted results</h2>
+        <CardTitle icon="clock">Your posted results</CardTitle>
         {mine.length === 0 ? (
           <p className="muted">None yet.</p>
         ) : (

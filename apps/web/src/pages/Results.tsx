@@ -2,6 +2,7 @@ import { ExpirationTime } from "@arkiv-network/sdk"
 import { renderWhere, type AggRow, type PanelState, type Row } from "@collate/core"
 import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useState } from "react"
+import { CardTitle, Icon, Skeleton } from "../components/ui"
 import { collate, deployment, nameOf, prefs } from "../lib/collate"
 import { exploreHref, figures, timeAgo, useElection } from "../lib/data"
 import { errorMessage, useWallet } from "../lib/wallet"
@@ -43,21 +44,36 @@ export function Results() {
   return (
     <div className="grid">
       <section className="hero">
-        <div className="row">
+        <div className="eyebrow">
           <LivePill state={state} />
           <span className="pill">Synthetic data</span>
+          <span className="pill">Tiramisu testnet</span>
         </div>
-        <h1>{info.name}</h1>
+        <Title name={info.name} />
         <p>
           Polling-unit results posted by accredited observers as Arkiv entities. Choose whose observers you trust; every total is
           recomputed in your browser from the raw results, and every number links to who posted it.
         </p>
+        <div className="steps" aria-label="How Collate works">
+          <div className="step">
+            <span className="icon-chip"><Icon name="upload" size={16} /></span>
+            <span><b>Observers post</b>Each unit's result is signed by an accredited wallet and stored on Arkiv.</span>
+          </div>
+          <div className="step">
+            <span className="icon-chip"><Icon name="lock" size={16} /></span>
+            <span><b>Nobody can edit</b>Results are readonly. Fixes are new corrections; originals stay public.</span>
+          </div>
+          <div className="step">
+            <span className="icon-chip"><Icon name="eye" size={16} /></span>
+            <span><b>You verify</b>Your browser reads Arkiv directly and recomputes every total. No Collate server.</span>
+          </div>
+        </div>
       </section>
 
-      <section className="card" aria-labelledby="trust-h">
+      <section className="card trust-bar" aria-labelledby="trust-h">
         <div className="card-head">
           <div>
-            <h2 id="trust-h">Whose observers do you trust?</h2>
+            <CardTitle icon="shield" id="trust-h">Whose observers do you trust?</CardTitle>
             <p>Trust comes from the coordinator wallet that created each accreditation ($creator), never from a field anyone can write.</p>
           </div>
           <div className="seg" role="group" aria-label="Coordinator">
@@ -90,7 +106,7 @@ export function Results() {
 
       <section className="card" aria-labelledby="totals-h">
         <div className="card-head">
-          <h2 id="totals-h">Votes by {groupBy === "lga" ? "LGA" : groupBy}</h2>
+          <CardTitle icon="chart" id="totals-h">Votes by {groupBy === "lga" ? "LGA" : groupBy}</CardTitle>
           <div className="toolbar">
             <div className="seg" role="group" aria-label="Group by">
               {(["state", "lga", "ward"] as const).map((g) => (
@@ -110,7 +126,7 @@ export function Results() {
           </div>
         </div>
         {!state || state.status === "loading" ? (
-          <p className="muted">Reading results from Arkiv…</p>
+          <Skeleton lines={4} height={22} />
         ) : state.groups.length === 0 ? (
           <p className="muted">No trusted results yet.</p>
         ) : view === "chart" ? (
@@ -150,6 +166,12 @@ export function Results() {
   )
 }
 
+/** The election name, with a trailing year picked out in the accent gradient. */
+function Title({ name }: { name: string }) {
+  const m = name.match(/^(.*) (\d{4})$/)
+  return <h1>{m ? <>{m[1]} <span className="grad">{m[2]}</span></> : name}</h1>
+}
+
 function LivePill({ state }: { state: PanelState | undefined }) {
   if (!state || state.live === "off") return <span className="pill pill-off">Connecting to Arkiv</span>
   if (state.live === "error") return <span className="pill pill-off">Live updates paused · refresh to retry</span>
@@ -168,24 +190,40 @@ function Tiles({ state, parties, units, onProof }: { state: PanelState | undefin
     <section className="tiles" aria-label="Headline totals">
       {parties.map((p, i) => {
         const votes = total?.sums[p.field] ?? 0
+        const share = valid ? (votes / valid) * 100 : 0
+        const leading = valid > 0 && parties.every((q) => (total?.sums[q.field] ?? 0) <= votes)
         return (
-          <button key={p.field} type="button" className="tile collate-clickable" style={{ textAlign: "left", font: "inherit", color: "inherit" }} onClick={() => total && onProof(`${p.name}: every counted result`, total.keys)}>
+          <button
+            key={p.field}
+            type="button"
+            className="tile"
+            style={{ ["--tile-color" as string]: `var(--collate-series-${i + 1})` }}
+            onClick={() => total && onProof(`${p.name}: every counted result`, total.keys)}
+          >
             <span className="tile-label">
               <span className="collate-swatch" style={{ background: `var(--collate-series-${i + 1})` }} />
               {p.name}
+              {leading && <span className="lead">Leading</span>}
             </span>
-            <span className="tile-value">{formatNumber(votes)}</span>
-            <span className="tile-sub">{valid ? `${((votes / valid) * 100).toFixed(1)}% of valid votes` : "—"}</span>
+            <span className="tile-value">{state?.status === "ready" ? formatNumber(votes) : "—"}</span>
+            <span className="share" aria-hidden="true"><span style={{ width: `${share}%` }} /></span>
+            <span className="tile-sub">
+              <span>{valid ? `${share.toFixed(1)}% of valid votes` : "Waiting for results"}</span>
+            </span>
           </button>
         )
       })}
-      <div className="tile">
+      <div className="tile" style={{ ["--tile-color" as string]: "var(--ink-2)" }}>
         <span className="tile-label">Units reported</span>
         <span className="tile-value">
           {reported.size}
           <span className="muted"> / {units || "—"}</span>
         </span>
-        <span className="tile-sub">{state?.disputes.length ?? 0} disputed</span>
+        <span className="share" aria-hidden="true"><span style={{ width: `${units ? (reported.size / units) * 100 : 0}%` }} /></span>
+        <span className="tile-sub">
+          <span>{state?.disputes.length ?? 0} disputed</span>
+          <span>{units ? `${Math.round((reported.size / units) * 100)}%` : ""}</span>
+        </span>
       </div>
     </section>
   )
@@ -216,10 +254,13 @@ function Disputes({ state, parties, onProof }: { state: PanelState | undefined; 
   return (
     <section className="card" aria-labelledby="disputes-h">
       <div className="card-head">
-        <h2 id="disputes-h">Disputed units</h2>
-        <span className={disputes.length ? "pill pill-critical" : "pill pill-good"}>{disputes.length ? `${disputes.length} flagged` : "None"}</span>
+        <CardTitle icon="alert" id="disputes-h" tone="critical">Disputed units</CardTitle>
+        {state?.status === "ready" && (
+          <span className={disputes.length ? "pill pill-critical" : "pill pill-good"}>{disputes.length ? `${disputes.length} flagged` : "None"}</span>
+        )}
       </div>
       <p className="muted">Two trusted observers posted different figures for the same unit. Both stay visible; neither is counted until resolved.</p>
+      {state?.status !== "ready" && <Skeleton lines={2} />}
       {disputes.map((d) => (
         <div key={d.key} className="dispute">
           <div className="dispute-head">
@@ -272,7 +313,7 @@ function Latest({ version, election, coordinator, parties, onProof }: { version:
   return (
     <section className="card" aria-labelledby="latest-h">
       <div className="card-head">
-        <h2 id="latest-h">Latest submissions</h2>
+        <CardTitle icon="clock" id="latest-h">Latest submissions</CardTitle>
         <div className="seg" role="group" aria-label="Window">
           {[1, 6, 24].map((h) => (
             <button key={h} type="button" aria-pressed={hours === h} onClick={() => setHours(h)}>
@@ -282,7 +323,7 @@ function Latest({ version, election, coordinator, parties, onProof }: { version:
         </div>
       </div>
       {state?.status === "loading" ? (
-        <p className="muted">Reading…</p>
+        <Skeleton lines={3} />
       ) : rows.length === 0 ? (
         <p className="muted">Nothing submitted in the last {hours} h.</p>
       ) : (
@@ -312,16 +353,18 @@ function Missing({ units, state }: { units: Row[]; state: PanelState | undefined
   return (
     <section className="card" aria-labelledby="missing-h">
       <div className="card-head">
-        <h2 id="missing-h">Units with no result yet</h2>
+        <CardTitle icon="map" id="missing-h">Units with no result yet</CardTitle>
         <span className="pill">{units.length ? `${missing.length} of ${units.length}` : "—"}</span>
       </div>
       {missing.length === 0 ? (
-        <p className="muted">{units.length ? "Every registered unit has a trusted result." : "Loading units…"}</p>
+        units.length ? <p className="muted">Every registered unit has a trusted result.</p> : <Skeleton lines={2} />
       ) : (
-        <p className="small">
-          {missing.slice(0, 30).map((u) => String(u.attrs.unit_code)).join(", ")}
-          {missing.length > 30 ? ` and ${missing.length - 30} more` : ""}
-        </p>
+        <div className="unit-chips">
+          {missing.slice(0, 30).map((u) => (
+            <span key={u.key}>{String(u.attrs.unit_code)}</span>
+          ))}
+          {missing.length > 30 ? <span>+{missing.length - 30} more</span> : null}
+        </div>
       )}
     </section>
   )
@@ -332,11 +375,13 @@ function Corrections({ state, parties, onProof }: { state: PanelState | undefine
   return (
     <section className="card" aria-labelledby="corrections-h">
       <div className="card-head">
-        <h2 id="corrections-h">Corrections</h2>
-        <span className="pill">{links.length}</span>
+        <CardTitle icon="edit" id="corrections-h">Corrections</CardTitle>
+        {state?.status === "ready" && <span className="pill">{links.length}</span>}
       </div>
       <p className="muted">Posted results can never be edited. A correction is a new entity by the same observer that names the original; both stay public.</p>
-      {links.length === 0 ? (
+      {state?.status !== "ready" ? (
+        <Skeleton lines={2} />
+      ) : links.length === 0 ? (
         <p className="muted">No corrections.</p>
       ) : (
         <ul className="feed">
@@ -367,7 +412,7 @@ function Suspicious({ version, election, coordinator, onProof }: { version: numb
   return (
     <section className="card" aria-labelledby="suspicious-h">
       <div className="card-head">
-        <h2 id="suspicious-h">High rejected ballots</h2>
+        <CardTitle icon="flame" id="suspicious-h">High rejected ballots</CardTitle>
         <label className="toolbar">
           <span className="toolbar-label">More than</span>
           <select value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="btn btn-small">
@@ -380,7 +425,7 @@ function Suspicious({ version, election, coordinator, onProof }: { version: numb
         </label>
       </div>
       {state?.status === "loading" ? (
-        <p className="muted">Reading…</p>
+        <Skeleton lines={3} />
       ) : (
         <RowTable
           rows={state?.current ?? []}
@@ -400,11 +445,13 @@ function Ignored({ state, parties, onProof }: { state: PanelState | undefined; p
   return (
     <section className="card" aria-labelledby="ignored-h">
       <div className="card-head">
-        <h2 id="ignored-h">Ignored writes</h2>
-        <span className="pill">{ignored.length}</span>
+        <CardTitle icon="ban" id="ignored-h">Ignored writes</CardTitle>
+        {state?.status === "ready" && <span className="pill">{ignored.length}</span>}
       </div>
       <p className="muted">Anyone can write to Arkiv. Results from wallets this group has not accredited are shown here and never counted.</p>
-      {ignored.length === 0 ? (
+      {state?.status !== "ready" ? (
+        <Skeleton lines={2} />
+      ) : ignored.length === 0 ? (
         <p className="muted">None.</p>
       ) : (
         <ul className="feed">
@@ -467,7 +514,7 @@ function ProofDialog({ proof, parties, block, onClose }: { proof: Proof; parties
 function OffArkiv() {
   return (
     <section className="card" aria-labelledby="off-h">
-      <h2 id="off-h">What is on Arkiv, and what is deliberately not</h2>
+      <CardTitle icon="database" id="off-h">What is on Arkiv, and what is deliberately not</CardTitle>
       <div className="grid cols-2">
         <ul className="list-plain">
           <li>

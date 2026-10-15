@@ -2,6 +2,7 @@ import { decodePanel, encodePanel, eq, renderWhere, type Panel } from "@collate/
 import { BarChart, GroupTable, Provenance, RowTable, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useState } from "react"
 import { collate, deployment, nameOf } from "../lib/collate"
+import { CardTitle, Skeleton } from "../components/ui"
 import { href } from "../lib/router"
 import { resultsPanel, unitsPanel } from "../model/panels"
 import type { Row } from "@collate/core"
@@ -67,7 +68,7 @@ export function Explore({ params }: { params: URLSearchParams }) {
       <div className="grid cols-2">
         <section className="card">
           <div className="card-head">
-            <h2>Panel config</h2>
+            <CardTitle icon="edit">Panel config</CardTitle>
             <select
               className="btn btn-small"
               value=""
@@ -132,12 +133,12 @@ function PanelView({ panel }: { panel: Panel }) {
   return (
     <section className="card">
       <div className="card-head">
-        <h2>{panel.title}</h2>
+        <CardTitle icon="chart">{panel.title}</CardTitle>
         <span className={state?.live === "live" ? "pill pill-live" : "pill pill-off"}>{state?.live === "live" ? "Live" : state?.status ?? "…"}</span>
       </div>
       <pre className="code">{renderWhere(panel.query)}</pre>
       {state?.status === "error" && <p className="notice notice-error">{state.error}</p>}
-      {state?.status === "loading" && <p className="muted">Reading from Arkiv…</p>}
+      {state?.status === "loading" && <Skeleton lines={4} height={18} />}
       {state?.status === "ready" && (
         <>
           <p className="muted">
