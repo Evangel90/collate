@@ -15,7 +15,7 @@ export { later, supersede } from "./supersede"
 export { watch, type LiveHandlers } from "./live"
 export { decodePanel, encodePanel, shareUrl } from "./share"
 export { computePanel, createPanel, type PanelHandle } from "./panel"
-export { decodeAttr, num, toRow } from "./rows"
+export { decodeAttr, field, num, toRow } from "./rows"
 
 /**
  * Entry point: one set of clients, many panels.

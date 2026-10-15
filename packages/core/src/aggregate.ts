@@ -1,4 +1,4 @@
-import { num } from "./rows"
+import { field, num } from "./rows"
 import type { AggRow, Row } from "./types"
 
 export type AggregateOptions = {
@@ -21,7 +21,7 @@ export function aggregate(rows: Row[], options: AggregateOptions = {}): { groups
   for (const row of rows) {
     add(total, row, fields)
     if (options.groupBy) {
-      const g = String(row.attrs[options.groupBy] ?? "—")
+      const g = String(field(row, options.groupBy) ?? "—")
       const agg = byGroup.get(g) ?? emptyAgg(g, fields)
       add(agg, row, fields)
       byGroup.set(g, agg)

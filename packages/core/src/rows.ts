@@ -57,6 +57,14 @@ export function toRow(entity: FullEntity): Row {
   }
 }
 
+/** An attribute, or a system field: `$key`, `$creator` or `$owner`. */
+export function field(row: Row, name: string): AttrValue | undefined {
+  if (name === "$key") return row.key
+  if (name === "$creator") return row.creator
+  if (name === "$owner") return row.owner
+  return row.attrs[name]
+}
+
 /** Numeric attribute, or 0 when missing or non-numeric. */
 export function num(row: Row, field: string): number {
   const value = row.attrs[field]
