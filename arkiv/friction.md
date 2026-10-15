@@ -57,3 +57,11 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Steps to reproduce: `curl -s -o /dev/null -w "%{http_code}" https://tiramisu.explorer.arkiv.network/entity/0x01`.
 - Workaround: check links by eye in a browser.
 - Suggested fix: server-side 404 for malformed keys and hashes.
+
+### 8. Live entity events over WebSocket work out of the box (smooth)
+- Surface: WebSocket events, `wss://rpc.tiramisu.db-chain.testnet.arkiv.network`, SDK 0.8.1 `watchEntityEvents`
+- Expected: to need a polling fallback, since some EVM RPCs do not support `eth_subscribe` for logs.
+- Actual: `createPublicClient({ chain: tiramisu, transport: webSocket(url) }).watchEntityEvents({ onEvent })` with no `fromBlock` delivered 35 decoded events (mostly `EntityCreated` from other apps) in 40 seconds, starting at block 616110, with no errors.
+- Steps to reproduce: the snippet above; log `e.type`, `e.entityKey`, `e.blockNumber` and count for 40 s.
+- Workaround: none needed. Because the chain is shared and busy, collate-core skips events from untrusted owners and batches re-reads of the rest into one `$key = … OR $key = …` query per flush.
+- Suggested fix: none; an optional server-side owner filter on the subscription would save clients the skipping.
