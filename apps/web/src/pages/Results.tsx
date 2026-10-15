@@ -93,7 +93,7 @@ export function Results() {
           </span>
           {state?.ignored.length ? (
             <span className="pill pill-critical">
-              {state.ignored.length} result{state.ignored.length === 1 ? "" : "s"} from unaccredited wallets ignored
+              {state.ignored.length} result{state.ignored.length === 1 ? "" : "s"} from wallets outside this group not counted
             </span>
           ) : null}
         </div>
@@ -303,7 +303,7 @@ function useFollow(handle: { refresh: () => Promise<void> } | undefined, version
 }
 
 function Latest({ version, election, coordinator, parties, onProof }: { version: number; election: string; coordinator: string; parties: Party[]; onProof: ProofHandler }) {
-  const [hours, setHours] = useState(1)
+  const [hours, setHours] = useState(24)
   // Rounded to the minute so the panel config, and with it the live subscription, stays stable.
   const since = useMemo(() => Math.floor(Date.now() / 60_000) * 60 - hours * 3600, [hours])
   const panel = useMemo(() => latestPanel(election, coordinator, since), [election, coordinator, since])
@@ -441,14 +441,19 @@ function Suspicious({ version, election, coordinator, onProof }: { version: numb
 }
 
 function Ignored({ state, parties, onProof }: { state: PanelState | undefined; parties: Party[]; onProof: ProofHandler }) {
-  const ignored = state?.ignored ?? []
+  const [all, setAll] = useState(false)
+  // Strangers first (wallets no group accredited), then other groups' observers.
+  const known = new Set(deployment.observers.map((o) => o.address))
+  const sorted = [...(state?.ignored ?? [])].sort((a, b) => Number(known.has(a.creator)) - Number(known.has(b.creator)))
+  const strangers = sorted.filter((r) => !known.has(r.creator)).length
+  const ignored = all ? sorted : sorted.slice(0, Math.max(3, strangers))
   return (
     <section className="card" aria-labelledby="ignored-h">
       <div className="card-head">
-        <CardTitle icon="ban" id="ignored-h">Ignored writes</CardTitle>
-        {state?.status === "ready" && <span className="pill">{ignored.length}</span>}
+        <CardTitle icon="ban" id="ignored-h">Not counted for this group</CardTitle>
+        {state?.status === "ready" && <span className="pill">{sorted.length}</span>}
       </div>
-      <p className="muted">Anyone can write to Arkiv. Results from wallets this group has not accredited are shown here and never counted.</p>
+      <p className="muted">Anyone can write to Arkiv. Results from wallets this group did not accredit, whether another group's observers or a stranger, are listed here and never counted in this view.</p>
       {state?.status !== "ready" ? (
         <Skeleton lines={2} />
       ) : ignored.length === 0 ? (
@@ -466,6 +471,11 @@ function Ignored({ state, parties, onProof }: { state: PanelState | undefined; p
           ))}
         </ul>
       )}
+      {sorted.length > ignored.length || all ? (
+        <button type="button" className="link-btn" onClick={() => setAll(!all)}>
+          {all ? "Show fewer" : `Show all ${sorted.length}, including other groups' observers`}
+        </button>
+      ) : null}
     </section>
   )
 }
