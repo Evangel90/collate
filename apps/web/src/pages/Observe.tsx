@@ -110,7 +110,7 @@ function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet
 
 function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; coordinator: string; mine: Row[]; onPosted: () => void }) {
   const election = deployment.election
-  const info = useElection(election, coordinator, true)
+  const info = useElection(election, coordinator)
   const parties = info.parties.length ? info.parties : DEFAULT_PARTIES
   const [unitCode, setUnitCode] = useState("")
   const [values, setValues] = useState(EMPTY)

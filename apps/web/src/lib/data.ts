@@ -1,4 +1,4 @@
-import { describeError, encodePanel, eq, type Panel, type Row } from "@collate/core"
+import { describeError, encodePanel, eq, or, type Panel, type Row } from "@collate/core"
 import { useEffect, useState } from "react"
 import type { Party } from "../model/schema"
 import { collate } from "./collate"
@@ -20,28 +20,28 @@ export type ElectionInfo = {
 }
 
 /**
- * Q1 and Q2: the election and its polling units, as the chosen coordinator registered them. Unit
- * payloads (display names) are fetched only when asked for, since every byte read is metered.
+ * Q1 and Q2 in one query: the election and its polling units, as the chosen coordinator
+ * registered them.
  */
-export function useElection(election: string, coordinator: string, unitNames = false): ElectionInfo {
+export function useElection(election: string, coordinator: string): ElectionInfo {
   const [info, setInfo] = useState<ElectionInfo>({ row: undefined, name: election, parties: DEFAULT_PARTIES, units: [], loading: true })
 
   useEffect(() => {
     let cancelled = false
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }))
-    Promise.all([
-      collate.fetchAll({ where: [eq("type", "election"), eq("election", election)], creators: [coordinator], payload: true }),
-      collate.fetchAll({ where: [eq("type", "unit"), eq("election", election)], creators: [coordinator], payload: unitNames }),
-    ])
-      .then(([e, u]) => {
+    // One query for both: Tiramisu prices every query the same (100 units), whatever it returns.
+    collate
+      .fetchAll({ where: [or(eq("type", "election"), eq("type", "unit")), eq("election", election)], creators: [coordinator], payload: true })
+      .then(({ rows }) => {
         if (cancelled) return
-        const row = e.rows[0]
+        const row = rows.find((r) => r.attrs.type === "election")
+        const units = rows.filter((r) => r.attrs.type === "unit")
         const payload = (row?.payload ?? {}) as { name?: string; parties?: Party[] }
         setInfo({
           row,
           name: payload.name ?? election,
           parties: Array.isArray(payload.parties) && payload.parties.length ? payload.parties : DEFAULT_PARTIES,
-          units: u.rows,
+          units,
           loading: false,
         })
       })
@@ -49,7 +49,7 @@ export function useElection(election: string, coordinator: string, unitNames = f
     return () => {
       cancelled = true
     }
-  }, [election, coordinator, unitNames])
+  }, [election, coordinator])
 
   return info
 }
