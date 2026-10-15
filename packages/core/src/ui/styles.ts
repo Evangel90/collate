@@ -64,9 +64,9 @@ export const collateCss = `
 .collate-value { fill: var(--collate-ink); font-size: 13px; font-variant-numeric: tabular-nums; }
 .collate-bar-row:hover rect[fill="transparent"] { fill: var(--collate-grid); fill-opacity: 0.35; }
 .collate-clickable { cursor: pointer; }
-.collate-tooltip { position: absolute; z-index: 5; pointer-events: none; min-width: 180px; padding: 8px 10px; border-radius: 8px;
+.collate-tooltip { position: absolute; z-index: 5; pointer-events: none; min-width: 190px; padding: 10px 12px; border-radius: 12px;
   background: var(--collate-surface); color: var(--collate-ink); border: 1px solid var(--collate-border);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12); font-size: 13px; display: grid; gap: 4px; }
+  box-shadow: 0 12px 32px -12px rgba(0,0,0,0.35); font-size: 13px; display: grid; gap: 5px; }
 .collate-tooltip-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; }
 .collate-num { text-align: right; font-variant-numeric: tabular-nums; }
 .collate-muted { color: var(--collate-muted); font-size: 13px; }
@@ -78,15 +78,15 @@ export const collateCss = `
 .collate-table tbody th { font-weight: 500; }
 .collate-table tfoot th, .collate-table tfoot td { font-weight: 600; border-bottom: none; }
 .collate-table tr.collate-clickable:hover { background: var(--collate-plane); }
-.collate-dialog { width: min(640px, calc(100vw - 32px)); max-height: min(80vh, 720px); padding: 20px; border-radius: 12px;
+.collate-dialog { width: min(660px, calc(100vw - 32px)); max-height: min(82vh, 760px); padding: 22px; border-radius: 18px; box-shadow: 0 30px 80px -24px rgba(0,0,0,0.5);
   border: 1px solid var(--collate-border); background: var(--collate-surface); color: var(--collate-ink); }
-.collate-dialog::backdrop { background: rgba(0,0,0,0.4); }
+.collate-dialog::backdrop { background: rgba(10,10,10,0.45); backdrop-filter: blur(4px); }
 .collate-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .collate-dialog-head h3 { margin: 0; font-size: 18px; }
 .collate-icon-btn { border: none; background: transparent; color: var(--collate-ink-2); font-size: 24px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .collate-icon-btn:hover { background: var(--collate-plane); }
 .collate-proof-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-.collate-proof-list li { padding: 10px 12px; border: 1px solid var(--collate-border); border-radius: 8px; display: grid; gap: 6px; }
+.collate-proof-list li { padding: 12px 14px; border: 1px solid var(--collate-border); border-radius: 12px; background: var(--collate-plane); display: grid; gap: 6px; }
 .collate-proof-main { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .collate-proof-desc { color: var(--collate-ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
 .collate-proof-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; color: var(--collate-ink-2); }
