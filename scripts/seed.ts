@@ -16,7 +16,7 @@ import {
 } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
 import { eq, or, type Expression } from "@arkiv-network/sdk/query"
-import { formatEther, http, type Hex, type PrivateKeyAccount } from "viem"
+import { formatEther, http, parseEther, type Hex, type PrivateKeyAccount } from "viem"
 import { accreditationEntity, correctionEntity, electionEntity, resultEntity, unitEntity } from "../apps/web/src/model/schema"
 import {
   ACCREDITED_BY_A,
@@ -96,13 +96,15 @@ async function fund() {
     if (DRY) return console.log(`  ${message}`)
     throw new Error(message)
   }
+  // Measured on Tiramisu at ~1 gwei: a 57-entity setup batch ≈ 0.0065 GLM, a 7-result batch ≈ 0.001
+  // GLM. These top-ups leave ample room for corrections and Lifetime Extensions.
   const targets = [
-    { role: "Coordinator B", address: w.coordinatorB.address, share: 15n },
-    ...w.observers.map((o, i) => ({ role: alias(i), address: o.address, share: 4n })),
-    { role: "Unaccredited", address: w.rogue.address, share: 2n },
+    { role: "Coordinator B", address: w.coordinatorB.address, want: parseEther("0.1") },
+    ...w.observers.map((o, i) => ({ role: alias(i), address: o.address, want: parseEther("0.05") })),
+    { role: "Unaccredited", address: w.rogue.address, want: parseEther("0.02") },
   ]
   for (const t of targets) {
-    const want = (balance * t.share) / 100n
+    const want = t.want
     const have = await publicClient.getBalance({ address: t.address })
     if (have >= want / 2n) continue
     if (DRY) {
