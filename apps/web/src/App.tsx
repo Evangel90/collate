@@ -1,14 +1,17 @@
 import { collateCss } from "@collate/core/ui"
 import { href, useRoute } from "./lib/router"
+import { Observe } from "./pages/Observe"
 import { Results } from "./pages/Results"
 
 const PAGES = [
   { path: "/", label: "Results" },
+  { path: "/observe", label: "Observer" },
 ]
 
 export function App() {
   const route = useRoute()
   const page =
+    route.path === "/observe" ? <Observe /> :
     <Results />
 
   return (
