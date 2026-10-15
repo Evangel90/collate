@@ -1,0 +1,19 @@
+{
+  "name": "collate-monorepo",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build -w @collate/core && npm run build -w @collate/web",
+    "dev": "npm run dev -w @collate/web",
+    "test": "npm test -w @collate/core",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
