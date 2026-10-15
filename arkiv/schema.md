@@ -40,8 +40,7 @@ Rendered exactly as the SDK sends them (`renderWhere` in `@collate/core`). `$E` 
 
 | # | Purpose | Query | Code |
 | --- | --- | --- | --- |
-| Q1 | Load the election | `type = str('election') AND election = str($E) AND $creator = addr($coordinator)` | [`lib/data.ts`](../apps/web/src/lib/data.ts) |
-| Q2 | Load polling units, cursor-paginated | `type = str('unit') AND election = str($E) AND $creator = addr($coordinator)` | [`lib/data.ts`](../apps/web/src/lib/data.ts) |
+| Q1+Q2 | Load the election and its polling units in one query, cursor-paginated | `(type = str('election') OR type = str('unit')) AND election = str($E) AND $creator = addr($coordinator)` | [`lib/data.ts`](../apps/web/src/lib/data.ts) |
 | Q3 | Resolve trusted observers | `type = str('accreditation') AND election = str($E) AND $creator = addr($coordinator)` → set of `observer` | [`core/trust.ts`](../packages/core/src/trust.ts) |
 | Q4+Q8 | Results and corrections, cursor-paginated | `(type = str('unit_result') OR type = str('correction')) AND election = str($E) AND ($creator = addr($o1) OR $creator = addr($o2) OR …)` (25 creators per query, in parallel) | [`model/panels.ts`](../apps/web/src/model/panels.ts), [`core/query.ts`](../packages/core/src/query.ts) |
 | Q4′ | Same, any creator, to list ignored writes | Q4 without the `$creator` clause; split by trust in the browser | `includeIgnored` in [`core/panel.ts`](../packages/core/src/panel.ts) |
@@ -50,6 +49,8 @@ Rendered exactly as the SDK sends them (`renderWhere` in `@collate/core`). `$E` 
 | Q7 | High rejected ballots | Q4 `AND rejected > u64($threshold)` | `suspiciousPanel` |
 | Q9 | Observer's own accreditations | `type = str('accreditation') AND election = str($E) AND observer = str($me) AND ($creator = addr($coordA) OR $creator = addr($coordB))` | [`pages/Observe.tsx`](../apps/web/src/pages/Observe.tsx) |
 | Live | New results, corrections, deletions, extensions | `watchEntityEvents` on a WebSocket transport, no `fromBlock`. Each `EntityCreated` from a trusted owner is re-read with `$key = key(...) AND <panel query>` and its `$creator` re-checked before it is applied | [`core/live.ts`](../packages/core/src/live.ts), [`core/panel.ts`](../packages/core/src/panel.ts) |
+
+Tiramisu prices every anonymous query at a flat 100 cost units (100 queries per window per connection), so the app prefers few broad queries: Q1 and Q2 are merged, panels share one head block and identical walks, and live updates re-read only entities from trusted wallets. A results page load is about 5 queries.
 
 Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.next()` until there is no cursor, so totals are a consistent snapshot even past 200 entities.
 
