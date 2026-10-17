@@ -11,12 +11,14 @@ export type BarChartProps = {
   onSelect?: (group: AggRow) => void
   /** Accessible description of what the chart shows. */
   title: string
+  /** Width reserved for group labels, in chart units (the chart is 640 wide). Default 116. */
+  labelWidth?: number
 }
 
 const BAR = 22 // px, under the 24px cap
 const ROW = 44
 const GAP = 2 // surface gap between stacked segments
-const LABEL_W = 116
+const LABEL_W_DEFAULT = 116
 const VALUE_W = 64
 
 /**
@@ -24,7 +26,8 @@ const VALUE_W = 64
  * (`--collate-series-N`). Identity never rests on color alone: there is a legend, a hover tooltip,
  * and the table view carries every number.
  */
-export function BarChart({ groups, series, onSelect, title }: BarChartProps) {
+export function BarChart({ groups, series, onSelect, title, labelWidth }: BarChartProps) {
+  const LABEL_W = Math.min(320, Math.max(60, labelWidth ?? LABEL_W_DEFAULT))
   const [hover, setHover] = useState<{ group: AggRow; x: number; y: number } | undefined>()
   const width = 640
   const plotW = width - LABEL_W - VALUE_W
