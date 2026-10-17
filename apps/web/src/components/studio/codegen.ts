@@ -111,10 +111,14 @@ const stop = panel.subscribe((state) => {
 export function reactSnippet(panel: StudioPanel): string {
   const sum = panel.sum ?? []
   const label = (f: string) => panel.labels?.[f] ?? f
-  const series = sum.length
-    ? `[${sum.slice(0, 3).map((f) => `{ field: ${str(f)}, label: ${str(label(f))} }`).join(", ")}]`
-    : `[{ field: "count", label: "Entities" }]`
-  const columns = `[${sum.map((f) => `{ field: ${str(f)}, label: ${str(label(f))} }`).join(", ")}]`
+  // Short lists stay on one line; longer ones get one item per line inside the JSX attribute.
+  const list = (items: string[]) => {
+    const flat = `[${items.join(", ")}]`
+    return flat.length < 60 ? flat : `[\n${items.map((x) => `        ${x},`).join("\n")}\n      ]`
+  }
+  const item = (f: string) => `{ field: ${str(f)}, label: ${str(label(f))} }`
+  const series = sum.length ? list(sum.slice(0, 3).map(item)) : `[{ field: "count", label: "Entities" }]`
+  const columns = list(sum.map(item))
   const groups = sum.length ? "state.groups" : "state.groups.map((g) => ({ ...g, sums: { count: g.count } }))"
   const body = panel.groupBy
     ? panel.view === "bar"

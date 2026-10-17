@@ -61,7 +61,7 @@ export function Builder({ draft, onChange, fields, dirty, error, onRun, onApplyJ
             <input
               className="studio-in mono"
               aria-label="Attribute for one-of"
-              placeholder="type"
+              placeholder="attribute"
               list={`${id}-all`}
               value={draft.oneOf.field}
               onChange={(e) => set({ oneOf: { ...draft.oneOf, field: e.target.value } })}
@@ -71,7 +71,7 @@ export function Builder({ draft, onChange, fields, dirty, error, onRun, onApplyJ
               label="One-of values"
               values={draft.oneOf.values}
               onChange={(values) => set({ oneOf: { field: draft.oneOf.field || "type", values } })}
-              placeholder="unit_result, correction"
+              placeholder="values (any of them matches)"
               suggestions={draft.oneOf.field ? oneOfValues : []}
               mono
             />
