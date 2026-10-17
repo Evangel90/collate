@@ -109,7 +109,7 @@ function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; elect
   const [name, setName] = useState("My election (synthetic)")
   const [closes, setCloses] = useState(() => new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10))
   const [quorum, setQuorum] = useState(1)
-  const [csv, setCsv] = useState("unit_code,ward,lga,state,registered,name\nXX-01-01,Ward One,Area North,Lagos,800,Unit 1 (Town Hall)\nXX-01-02,Ward One,Area North,Lagos,650,Unit 2 (School)")
+  const [csv, setCsv] = useState("unit_code,ward,lga,state,registered,name\nLA-IKJ-01-001,Ikeja Ward 01,Ikeja,Lagos,800,Unit 001, Town Hall\nLA-IKJ-01-002,Ikeja Ward 01,Ikeja,Lagos,650,Unit 002, Primary School")
   const [status, setStatus] = useState<Status>()
 
   const parsed = useMemo(() => parseUnits(csv, election), [csv, election])

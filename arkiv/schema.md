@@ -41,7 +41,7 @@ Totals by ward, LGA and state; each unit's consensus status (certified, conteste
 
 ## Queries the app runs
 
-Rendered exactly as the SDK sends them (`renderWhere` in `@collate/core`). `$E` = `demo-2027`.
+Rendered exactly as the SDK sends them (`renderWhere` in `@collate/core`). `$E` = `collate-demo-ng` (the demo election: synthetic results, real Nigerian state and LGA names).
 
 | # | Purpose | Query | Code |
 | --- | --- | --- | --- |

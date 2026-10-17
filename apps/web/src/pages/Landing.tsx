@@ -385,7 +385,7 @@ const collate = createCollate() // Tiramisu, public RPC, no keys
 
 const panel = collate.panel({
   title: "Results by state",
-  query: [eq("type", "unit_result"), eq("election", "demo-2027")],
+  query: [eq("type", "unit_result"), eq("election", "collate-demo-ng")],
   trust: {
     rootCreators: [coordinator],          // whom the viewer trusts
     listQuery: [eq("type", "accreditation")],
@@ -554,7 +554,7 @@ function WhyArkiv() {
               A quorum does not protect against a corrupt coordinator, or against N members who collude. The defence is that viewers
               choose whom to trust, and every report, outlier and correction stays on the record.
             </li>
-            <li>All data is synthetic: a fictional election, parties and units, and observers known only by wallet and alias.</li>
+            <li>All results are synthetic: fictional parties, polling units and observers known only by wallet and alias, set in real Nigerian states and LGAs. It is not a real election.</li>
           </ul>
         </div>
       </div>

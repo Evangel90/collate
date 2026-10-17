@@ -2,6 +2,10 @@
 
 Every write the seed script made on Tiramisu (chain 7738577). These links stay valid after the entities expire.
 
+## `demo-2027` (earlier demo, invented place names)
+
+No longer read by the app; kept for the record until its entities expire.
+
 | Wallet | What | Transaction |
 | --- | --- | --- |
 | Coordinator A | fund Coordinator B with 0.1 GLM | [0x42e65d6d…](https://tiramisu.explorer.arkiv.network/tx/0x42e65d6d673fdd8d6a67b6e3328bd49a812296aacce8e21c0f454f379f766a7d) |
@@ -34,3 +38,10 @@ Every write the seed script made on Tiramisu (chain 7738577). These links stay v
 | Observer 12 | 6 unit results | [0x9a4ff551…](https://tiramisu.explorer.arkiv.network/tx/0x9a4ff55158675b907a10bd367a1c0b3d1a9b149cb81fe2633d9258749f83fb0f) |
 | Observer 03 | correction of LA-LS1-02 | [0x6cf49911…](https://tiramisu.explorer.arkiv.network/tx/0x6cf49911c66b533af9951522721508af4824e9926e7beb6c67ab0770dcefe627) |
 | Unaccredited | inflated result for LA-LN1-01 | [0xe38c3af9…](https://tiramisu.explorer.arkiv.network/tx/0xe38c3af972f084749bc9f6dc77f0e6abd878397bbe51160714418b43a54663e2) |
+
+## `collate-demo-ng` (synthetic results, real Nigerian geography)
+
+The current demo election. `npm run seed` appends one row per transaction below: two coordinator batches (election, 72 units and 8 accreditations each), twelve observer batches, one correction and one unaccredited write.
+
+| Wallet | What | Transaction |
+| --- | --- | --- |

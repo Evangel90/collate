@@ -6,7 +6,7 @@ Collate is a public, tamper-evident election results board for low-trust electio
 
 The engine underneath, [`@collate/core`](packages/core), knows nothing about elections. **Collate Studio** uses it to turn any Arkiv query, including other projects' data, into a live, trust-filtered, shareable dashboard.
 
-Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance**, **Open Source** and **Security**. All data is synthetic: a fictional election, fictional parties and units, and observers known only by wallet and alias.
+Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance**, **Open Source** and **Security**. All results are synthetic: a demo election with fictional parties, polling units and observers (known only by wallet and alias), set in real Nigerian states and LGAs. It is not a real election and its figures reflect no real vote.
 
 - **Live app:** https://collate-silk.vercel.app (static, no login, reads straight from Arkiv): [results](https://collate-silk.vercel.app/#/results) · [Studio](https://collate-silk.vercel.app/#/studio)
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
@@ -48,6 +48,7 @@ The same consensus rule also speaks to the "Multi-Writer Collaborative State" ga
 | Result-sheet photos | Large, and can expose people at the unit | With the observer group; only a SHA-256 hash (computed in the browser) is stored |
 | Computed totals | A stored "official total" is one more thing that can be wrong or forged | Recomputed by every viewer from raw results |
 | Disputes | Derived; storing them would let one party declare a dispute settled | Computed client-side by collate-core |
+| Real wards, polling units and results | Made-up figures under real polling-unit names could pass for real results ahead of Nigeria's 2027 elections | Nowhere. The demo uses real state and LGA names only; wards are numbered, units are generic, parties are fictional, and the election's id, name and description say it is synthetic |
 | Keys and secrets | Dangerous and disqualifying | `.env` (git-ignored) and the user's wallet |
 | Viewer preferences | Personal, per device | Browser `localStorage` |
 
@@ -57,7 +58,7 @@ The same consensus rule also speaks to the "Multi-Writer Collaborative State" ga
 collate/
 ├── packages/core/     @collate/core: live, trust-filtered Arkiv panels (+ optional React UI)
 ├── apps/web/          Collate: landing, results, observer, coordinator and Studio pages
-├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals)
+├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals), replay.ts (offline)
 ├── arkiv/             schema.md, friction.md, seed-transactions.md
 └── LICENSE            MIT
 ```
@@ -88,14 +89,14 @@ npm run seed -- --dry   # shows the plan, writes nothing
 npm run seed            # funds the other wallets from Coordinator A, then writes everything
 ```
 
-The seed is idempotent: each step queries Arkiv first and skips what is already there. A write with an unknown outcome stops the run with its transaction hash instead of being resent.
+The seed is idempotent: it first reads everything the election already has from the seed wallets, in one paginated query, and writes only what is missing. Tiramisu meters every query (100 cost units each), so a full run makes at most a few, and prints how many. A write with an unknown outcome stops the run with its transaction hash instead of being resent.
 
 ## Reproduce every claim
 
 1. Open the live app, keep **Observer Group A** selected, and note the totals.
-2. Run `npm run verify`. It prints the exact queries (Q3, then Q4 + Q8), the trusted observers, how many writes were ignored, the certified, contested and pending units (with outliers) and the totals by state, read straight from Tiramisu. They match the page. Add `--quorum 2` to match the page with "Require at least 2 agreeing observers" selected.
+2. Run `npm run verify`. It prints the exact queries (Q3, then Q4′, split by trust in memory: two metered queries in all), the trusted observers, how many writes were ignored, the certified, contested and pending units (with outliers) and the totals by state, read straight from Tiramisu. They match the page. Add `--quorum 2` to match the page with "Require at least 2 agreeing observers" selected.
 3. Switch to Group B on the page and run `npm run verify -- --coordinator <Group B address>`.
-4. Or skip our code entirely: query `type = "unit_result" AND election = "demo-2027"` with any Arkiv client and filter by the creators listed below.
+4. Or skip our code entirely: query `type = "unit_result" AND election = "collate-demo-ng"` with any Arkiv client and filter by the creators listed below.
 
 ## Wallets that create Collate's entities (Tiramisu)
 
@@ -121,7 +122,18 @@ All are fresh testnet wallets created for this project and hold no real funds.
 
 ## The demo dataset
 
-1 election (`demo-2027`), 2 observer groups, 12 observers, 48 polling units across 2 states, 4 LGAs and 8 wards, 3 fictional parties. Deliberate cases: in Group A's view, one unit certified 2 to 1 with a named outlier and one contested unit (1 against 1); one contested unit in Group B's view; six second counts that agree with the first observer, so raising the quorum to 2 still leaves certified units; one correction; one unit left for the live demo; and one inflated result from an unaccredited wallet. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts).
+1 election, `collate-demo-ng` ("Collate demo election (synthetic results, real Nigerian geography)"), 2 observer groups, 12 observers, 72 polling units across 6 states (Lagos, Kano, Rivers, FCT, Enugu, Oyo), 12 LGAs (two per state, e.g. Ikeja and Surulere in Lagos) and 24 numbered wards, 3 fictional parties (Unity Party, Progress Alliance, Green Coalition). **Only the state and LGA names are real.** Every result, party, observer, ward and polling unit is synthetic: wards are numbered ("Ikeja Ward 03"), units are generic ("Unit 002, Civic Centre", code `LA-IKJ-03-002`), and the election's description says so.
+
+Group A's observers cover every unit; Group B's own observers count Rivers, FCT and Enugu a second time. Deliberate cases: in Group A's view, `LA-IKJ-03-002` certified 2 to 1 with Observer 04 the outlier and `KN-NAS-09-002` contested (1 against 1); `FC-AMC-10-002` contested in Group B's view; six second counts that agree with the first observer, so at quorum 2 Group A still certifies six units; one correction (`KN-FAG-06-003`); one unit left for the live demo (`OY-OGN-07-003`, Observer 08's); and one inflated result for `LA-IKJ-03-001` from an unaccredited wallet. Results are timestamped across the 12 hours before seeding. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts); `npm run replay` runs it through `@collate/core` offline, with no Arkiv reads:
+
+| View | Certified | Contested | Pending |
+| --- | --- | --- | --- |
+| Group A, quorum 1 | 70 | 1 | 0 |
+| Group A, quorum 2 | 6 | 1 | 64 |
+| Group B, quorum 1 | 47 | 1 | 0 |
+| Group B, quorum 2 | 24 | 1 | 23 |
+
+An earlier version of the demo used election id `demo-2027` with invented place names; its entities stay on Tiramisu until they expire, but the app no longer reads them.
 
 ## Built with
 

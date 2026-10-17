@@ -34,10 +34,10 @@ const collate = createCollate() // Tiramisu, public RPC, no keys
 
 const panel = collate.panel({
   title: "Votes by state",
-  query: [or(eq("type", "unit_result"), eq("type", "correction")), eq("election", "demo-2027")],
+  query: [or(eq("type", "unit_result"), eq("type", "correction")), eq("election", "collate-demo-ng")],
   trust: {
     rootCreators: ["0x86d0886835480cfee3a0dbfb7814434dab851381"], // whom the viewer trusts
-    listQuery: [eq("type", "accreditation"), eq("election", "demo-2027")],
+    listQuery: [eq("type", "accreditation"), eq("election", "collate-demo-ng")],
     addressField: "observer", // attribute on the list entities naming a trusted wallet
   },
   supersedeField: "corrects",
