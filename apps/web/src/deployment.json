@@ -3,7 +3,7 @@
     "name": "Tiramisu",
     "chainId": 7738577
   },
-  "election": "demo-2027",
+  "election": "collate-demo-ng",
   "coordinators": [
     {
       "id": "a",

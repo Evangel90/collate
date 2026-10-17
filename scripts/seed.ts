@@ -1,7 +1,8 @@
 /**
- * Seeds the synthetic demo election on Tiramisu. Safe to re-run: every step first queries Arkiv for
- * what it would write and skips if it is already there. A write whose outcome is unknown stops the
- * run instead of being resent; reconcile it on the explorer first.
+ * Seeds the synthetic demo election on Tiramisu. Safe to re-run: it first reads everything this
+ * election already has from our wallets (one paginated query) and writes only what is missing. A
+ * write whose outcome is unknown stops the run with its transaction hash instead of being resent;
+ * reconcile it on the explorer first.
  *
  *   npm run seed            # fund wallets from Coordinator A, then write everything
  *   npm run seed -- --dry   # show the plan and balances, write nothing
@@ -15,20 +16,19 @@ import {
   type CreateEntityParameters,
 } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
-import { eq, or, type Expression } from "@arkiv-network/sdk/query"
+import { eq, fetchAll, type Row } from "@collate/core"
 import { formatEther, http, parseEther, type Hex, type PrivateKeyAccount } from "viem"
 import { accreditationEntity, correctionEntity, electionEntity, resultEntity, unitEntity } from "../apps/web/src/model/schema"
 import {
   ACCREDITED_BY_A,
   ACCREDITED_BY_B,
   ELECTION,
-  EXTRAS,
   alias,
-  assignments,
+  correctionPlan,
   electionInput,
+  observerResults,
   result,
-  shifted,
-  trueFigures,
+  roguePlan,
   units,
 } from "./demo-data"
 import { writeDeployment } from "./deployment"
@@ -38,7 +38,14 @@ const DRY = process.argv.includes("--dry")
 const EXPLORER = "https://tiramisu.explorer.arkiv.network"
 const LOG = resolve(import.meta.dirname, "../arkiv/seed-transactions.md")
 
-const publicClient = createPublicClient({ chain: tiramisu, transport: http(), cacheTime: 0 })
+/** Counts `arkiv_query` calls: Tiramisu meters each one (100 cost units) whatever it returns. */
+let queries = 0
+const countingFetch = (input: string | URL | Request, init?: RequestInit) => {
+  if (typeof init?.body === "string") queries += init.body.split('"arkiv_query"').length - 1
+  return fetch(input, init)
+}
+// No automatic retries: a retried query is one more metered query. Re-run instead; every step is idempotent.
+const publicClient = createPublicClient({ chain: tiramisu, transport: http(undefined, { retryCount: 0, fetchFn: countingFetch }), cacheTime: 0 })
 const walletFor = (account: PrivateKeyAccount) =>
   createWalletClient({ account, chain: tiramisu, transport: http(undefined, { retryCount: 0, timeout: 60_000 }) })
 
@@ -46,6 +53,8 @@ const w = loadWallets()
 writeDeployment(w)
 const now = Math.floor(Date.now() / 1000)
 const UNITS = units()
+/** Every wallet that writes in the seed. Entities from anyone else are never read here. */
+const OURS = [w.coordinatorA, w.coordinatorB, ...w.observers, w.rogue].map((a) => a.address.toLowerCase())
 
 function log(role: string, what: string, txHash: Hex) {
   if (!existsSync(LOG)) {
@@ -58,10 +67,22 @@ function log(role: string, what: string, txHash: Hex) {
   console.log(`  ✓ ${role}: ${what}\n    ${EXPLORER}/tx/${txHash}`)
 }
 
-async function count(where: Expression[], creator: Hex) {
-  const page = await publicClient.select({ key: true }).where(where).createdBy(creator).limit(200).fetch()
-  return page.entities.length
+/**
+ * Every entity of this election created by one of our wallets, read at one block: elections, units,
+ * accreditations, results and corrections. Each step decides from this snapshot in memory, so a full
+ * run costs a few queries instead of one per step.
+ */
+async function snapshot(): Promise<Row[]> {
+  const block = await publicClient.getBlockNumber()
+  const before = queries
+  const { rows } = await fetchAll(publicClient, { where: [eq("election", ELECTION)], creators: OURS, atBlock: block })
+  const spent = queries - before
+  console.log(`  read ${rows.length} entities of ${ELECTION} from our wallets at block ${block} (${spent} ${spent === 1 ? "query" : "queries"})`)
+  return rows
 }
+
+const by = (rows: Row[], account: PrivateKeyAccount, ...types: string[]) =>
+  rows.filter((r) => r.creator === account.address.toLowerCase() && types.includes(String(r.attrs.type)))
 
 /** Sends one batch; on an unknown outcome, stops with the hash rather than resending. */
 async function batch(account: PrivateKeyAccount, role: string, what: string, creates: CreateEntityParameters[]) {
@@ -103,10 +124,12 @@ async function fund() {
     ...w.observers.map((o, i) => ({ role: alias(i), address: o.address, want: parseEther("0.05") })),
     { role: "Unaccredited", address: w.rogue.address, want: parseEther("0.02") },
   ]
+  let topUps = 0
   for (const t of targets) {
     const want = t.want
     const have = await publicClient.getBalance({ address: t.address })
     if (have >= want / 2n) continue
+    topUps++
     if (DRY) {
       console.log(`  would send ${formatEther(want - have)} GLM to ${t.role}`)
       continue
@@ -116,134 +139,101 @@ async function fund() {
     if (receipt.status !== "success") throw new Error(`Funding ${t.role} failed: ${hash}`)
     log("Coordinator A", `fund ${t.role} with ${formatEther(want - have)} GLM`, hash)
   }
+  if (topUps === 0) console.log("  every other wallet holds at least half its target, no top-ups")
 }
 
-async function coordinator(account: PrivateKeyAccount, role: string, accredited: number[]) {
+async function coordinator(rows: Row[], account: PrivateKeyAccount, role: string, accredited: number[]) {
   const election = electionInput(now)
-  const existing = await count([eq("type", "election"), eq("election", ELECTION)], account.address)
-  if (existing > 0) {
-    console.log(`  ${role}: election already on Arkiv, skipping`)
+  const mine = by(rows, account, "election", "unit", "accreditation")
+  const accreditation = (o: number) => accreditationEntity(ELECTION, w.observers[o]!.address, alias(o), election.closesAt)
+  if (!mine.some((r) => r.attrs.type === "election")) {
+    const creates = [electionEntity(election), ...UNITS.map(unitEntity), ...accredited.map(accreditation)]
+    if (DRY) return console.log(`  ${role}: would create the election, ${UNITS.length} units and ${accredited.length} accreditations (${creates.length} entities, one batch)`)
+    try {
+      await batch(account, role, `election, ${UNITS.length} units, ${accredited.length} accreditations`, creates)
+    } catch (error) {
+      if (String(error).includes("unknown")) throw error
+      // Never split after a send that may have landed: re-check before writing again.
+      if (by(await snapshot(), account, "election").length > 0) throw error
+      console.log(`  one batch was refused (${(error as Error).message.split("\n")[0]}); splitting`)
+      await chunked(account, role, "election setup", creates, 15)
+    }
     return
   }
-  const creates = [
-    electionEntity(election),
-    ...UNITS.map(unitEntity),
-    ...accredited.map((o) => accreditationEntity(ELECTION, w.observers[o]!.address, alias(o), election.closesAt)),
+  // The election exists. Finish a setup that an earlier split run left incomplete.
+  const haveUnits = new Set(mine.filter((r) => r.attrs.type === "unit").map((r) => String(r.attrs.unit_code)))
+  const haveObservers = new Set(mine.filter((r) => r.attrs.type === "accreditation").map((r) => String(r.attrs.observer)))
+  const missing = [
+    ...UNITS.filter((u) => !haveUnits.has(u.unitCode)).map(unitEntity),
+    ...accredited.filter((o) => !haveObservers.has(w.observers[o]!.address.toLowerCase())).map(accreditation),
   ]
-  if (DRY) return console.log(`  ${role}: would create ${creates.length} entities`)
-  try {
-    await batch(account, role, `election, ${UNITS.length} units, ${accredited.length} accreditations`, creates)
-  } catch (error) {
-    if (String(error).includes("unknown")) throw error
-    // Never split after a send that may have landed: re-check before writing again.
-    if ((await count([eq("type", "election"), eq("election", ELECTION)], account.address)) > 0) throw error
-    console.log(`  one batch was refused (${(error as Error).message.split("\n")[0]}); splitting`)
-    await chunked(account, role, "election setup", creates, 15)
-  }
+  if (missing.length === 0) return console.log(`  ${role}: election, units and accreditations already on Arkiv, skipping`)
+  if (DRY) return console.log(`  ${role}: election exists; would add ${missing.length} missing units or accreditations`)
+  await chunked(account, role, "rest of election setup", missing, 15)
 }
 
-function observerPlan(o: number) {
-  const plan = assignments().get(o) ?? []
-  const creates: CreateEntityParameters[] = []
-  for (const u of plan) {
-    const unit = UNITS[u]!
-    let figures = trueFigures(unit, u)
-    if (o === EXTRAS.disputeB.observer && u === EXTRAS.disputeB.unit) figures = shifted(figures, EXTRAS.disputeB.shift)
-    // The mistyped original; the correction follows once its key is known.
-    if (o === EXTRAS.correction.observer && u === EXTRAS.correction.unit) figures = { ...figures, votes_a: figures.votes_a + 90 }
-    creates.push(resultEntity(result(unit, figures, now - 3600 * 5 + u * 337)))
-  }
-  const extra = (e: { observer: number; unit: number }, f: ReturnType<typeof trueFigures>, note: string) => {
-    if (e.observer === o) creates.push(resultEntity(result(UNITS[e.unit]!, f, now - 1800 + e.unit * 7, note)))
-  }
-  extra(EXTRAS.confirmation, trueFigures(UNITS[EXTRAS.confirmation.unit]!, EXTRAS.confirmation.unit), "Second count at this unit")
-  extra(EXTRAS.disputeA, shifted(trueFigures(UNITS[EXTRAS.disputeA.unit]!, EXTRAS.disputeA.unit), EXTRAS.disputeA.shift), "Second count at this unit")
-  extra(EXTRAS.disputeA2, shifted(trueFigures(UNITS[EXTRAS.disputeA2.unit]!, EXTRAS.disputeA2.unit), EXTRAS.disputeA2.shift), "Second count at this unit")
-  return creates
-}
-
-const resultTypes = or(eq("type", "unit_result"), eq("type", "correction"))
-
-async function observers() {
+/** Each observer's first and second counts go in one batch, minus units that observer already reported. */
+async function observers(rows: Row[]) {
   console.log("\n3. Observer results")
+  const plan = observerResults(now)
+  let wrote = false
   for (const [o, account] of w.observers.entries()) {
-    const creates = observerPlan(o)
-    if (creates.length === 0) continue
-    if ((await count([resultTypes, eq("election", ELECTION)], account.address)) > 0) {
-      console.log(`  ${alias(o)}: results already on Arkiv, skipping`)
+    const mine = plan.filter((p) => p.observer === o)
+    if (mine.length === 0) continue
+    const reported = new Set(by(rows, account, "unit_result", "correction").map((r) => String(r.attrs.unit_code)))
+    const todo = mine.filter((p) => !reported.has(UNITS[p.unit]!.unitCode))
+    if (todo.length === 0) {
+      console.log(`  ${alias(o)}: all ${mine.length} results already on Arkiv, skipping`)
       continue
     }
+    const second = todo.filter((p) => p.note).length
+    const what = `${todo.length} unit results${second ? ` (${second} second ${second === 1 ? "count" : "counts"})` : ""}`
+    const already = mine.length > todo.length ? `; ${mine.length - todo.length} already on Arkiv` : ""
     if (DRY) {
-      console.log(`  ${alias(o)}: would post ${creates.length} results`)
+      console.log(`  ${alias(o)}: would post ${what}${already}`)
       continue
     }
-    await batch(account, alias(o), `${creates.length} unit results`, creates)
+    await batch(account, alias(o), what, todo.map((p) => resultEntity(result(UNITS[p.unit]!, p.figures, p.submittedAt, p.note))))
+    wrote = true
   }
+  return wrote
 }
 
-async function correction() {
+async function correction(rows: Row[], observersWrote: boolean) {
   console.log("\n4. Correction")
-  const { observer, unit: u } = EXTRAS.correction
-  const account = w.observers[observer]!
-  const unit = UNITS[u]!
-  if ((await count([eq("type", "correction"), eq("election", ELECTION)], account.address)) > 0) {
-    return console.log(`  ${alias(observer)}: correction already on Arkiv, skipping`)
+  const fix = correctionPlan(now)
+  const account = w.observers[fix.observer]!
+  const unit = UNITS[fix.unit]!
+  const at = (list: Row[], type: string) => by(list, account, type).filter((r) => r.attrs.unit_code === unit.unitCode)
+  if (at(rows, "correction").length > 0) return console.log(`  ${alias(fix.observer)}: correction already on Arkiv, skipping`)
+  let original = at(rows, "unit_result")[0]?.key
+  // The original was posted in this run, so the first snapshot cannot have its key: read once more.
+  if (!original && observersWrote) original = at(await snapshot(), "unit_result")[0]?.key
+  if (!original) {
+    if (DRY) return console.log(`  ${alias(fix.observer)}: would correct ${unit.unitCode} once its original is posted`)
+    return console.log(`  ${alias(fix.observer)}: original of ${unit.unitCode} not found yet, skipping; re-run to post the correction`)
   }
-  const page = await publicClient
-    .select({ key: true })
-    .where(eq("type", "unit_result"), eq("election", ELECTION), eq("unit_code", unit.unitCode))
-    .createdBy(account.address)
-    .limit(2)
-    .fetch()
-  const original = page.entities[0]?.key
-  if (!original) return console.log(`  ${alias(observer)}: original result not found yet${DRY ? " (dry run)" : ""}, skipping`)
-  if (DRY) return console.log(`  ${alias(observer)}: would correct ${original}`)
-  const fixed = result(unit, trueFigures(unit, u), now - 600)
-  await batch(account, alias(observer), `correction of ${unit.unitCode}`, [
-    correctionEntity(fixed, original, "Typed 90 extra votes for Unity Party; corrected from the result sheet"),
-  ])
+  if (DRY) return console.log(`  ${alias(fix.observer)}: would correct ${original}`)
+  await batch(account, alias(fix.observer), `correction of ${unit.unitCode}`, [correctionEntity(result(unit, fix.figures, fix.submittedAt), original, fix.reason)])
 }
 
-/**
- * Second counts added after the first seed, so they cannot ride in an observer's first batch (that
- * step skips any observer who has posted). Each is checked by unit before it is written.
- */
-async function secondCounts() {
-  console.log("\n5. Second counts")
-  for (const { observer: o, unit: u } of EXTRAS.agreements) {
-    const account = w.observers[o]!
-    const unit = UNITS[u]!
-    if ((await count([resultTypes, eq("election", ELECTION), eq("unit_code", unit.unitCode)], account.address)) > 0) {
-      console.log(`  ${alias(o)}: ${unit.unitCode} already on Arkiv, skipping`)
-      continue
-    }
-    if (DRY) {
-      console.log(`  ${alias(o)}: would post a second count of ${unit.unitCode}`)
-      continue
-    }
-    const figures = trueFigures(unit, u)
-    await batch(account, alias(o), `second count of ${unit.unitCode}`, [resultEntity(result(unit, figures, now - 1800 + u * 7, "Second count at this unit"))])
-  }
-}
-
-async function rogue() {
-  console.log("\n6. Unaccredited write")
-  const unit = UNITS[EXTRAS.rogue.unit]!
-  if ((await count([resultTypes, eq("election", ELECTION)], w.rogue.address)) > 0) {
-    return console.log("  unaccredited wallet: result already on Arkiv, skipping")
-  }
-  if (DRY) return console.log("  unaccredited wallet: would post an inflated result")
-  const figures = { ...trueFigures(unit, EXTRAS.rogue.unit), votes_a: EXTRAS.rogue.votes_a }
-  await batch(w.rogue, "Unaccredited", `inflated result for ${unit.unitCode}`, [resultEntity(result(unit, figures, now - 300, "Totally real"))])
+async function rogue(rows: Row[]) {
+  console.log("\n5. Unaccredited write")
+  const bad = roguePlan(now)
+  const unit = UNITS[bad.unit]!
+  if (by(rows, w.rogue, "unit_result", "correction").length > 0) return console.log("  unaccredited wallet: result already on Arkiv, skipping")
+  if (DRY) return console.log(`  unaccredited wallet: would post an inflated result for ${unit.unitCode}`)
+  await batch(w.rogue, "Unaccredited", `inflated result for ${unit.unitCode}`, [resultEntity(result(unit, bad.figures, bad.submittedAt, bad.note))])
 }
 
 console.log(`Seeding ${ELECTION} on Tiramisu (chain ${tiramisu.id})${DRY ? " — DRY RUN, nothing is written" : ""}`)
 await fund()
 console.log("\n2. Coordinators")
-await coordinator(w.coordinatorA, "Coordinator A", ACCREDITED_BY_A)
-await coordinator(w.coordinatorB, "Coordinator B", ACCREDITED_BY_B)
-await observers()
-await correction()
-await secondCounts()
-await rogue()
-console.log("\nDone. Public addresses are in apps/web/src/deployment.json; transactions in arkiv/seed-transactions.md.")
+const rows = await snapshot()
+await coordinator(rows, w.coordinatorA, "Coordinator A", ACCREDITED_BY_A)
+await coordinator(rows, w.coordinatorB, "Coordinator B", ACCREDITED_BY_B)
+const observersWrote = await observers(rows)
+await correction(rows, observersWrote)
+await rogue(rows)
+console.log(`\nArkiv queries: ${queries} (100 cost units each on Tiramisu; balance and nonce reads are not queries).`)
+console.log("Done. Public addresses are in apps/web/src/deployment.json; transactions in arkiv/seed-transactions.md.")

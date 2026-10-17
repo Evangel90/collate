@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "wallets": "tsx --tsconfig scripts/tsconfig.json scripts/wallets.ts",
     "seed": "tsx --tsconfig scripts/tsconfig.json scripts/seed.ts",
-    "verify": "tsx --tsconfig scripts/tsconfig.json scripts/verify.ts"
+    "verify": "tsx --tsconfig scripts/tsconfig.json scripts/verify.ts",
+    "replay": "tsx --tsconfig scripts/tsconfig.json scripts/replay.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.0",
