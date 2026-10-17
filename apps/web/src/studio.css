@@ -183,3 +183,74 @@
 .studio-mini-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
 .studio-mini-head h3 { font-size: 15px; font-weight: 600; }
 .studio-mini-foot { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.studio-mini.is-expanded { grid-column: 1 / -1; }
+.studio-mini-toggle {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink-2); cursor: pointer;
+}
+.studio-mini-toggle:hover { color: var(--ink); border-color: var(--border-strong); }
+
+/* ---------- Focus view: one panel (or the dashboard) large ---------- */
+/* The builder layout stays mounted under a large view; its own display rules must not show it. */
+.studio [hidden] { display: none !important; }
+
+.studio-focus { display: grid; gap: 16px; min-width: 0; padding-top: 4px; }
+.studio-focus-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
+.studio-focus-titles { display: grid; gap: 4px; min-width: 0; flex: 1 1 360px; }
+.studio-focus-kicker { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.studio-focus h1 { font-size: clamp(24px, 3.4vw, 36px); font-weight: 750; letter-spacing: -0.025em; line-height: 1.15; overflow-wrap: anywhere; }
+.studio-focus h1:focus { outline: none; }
+.studio-focus h1:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 4px; }
+.studio-focus-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.studio-focus-actions .btn-small { padding: 6px 12px; font-size: 14px; }
+.studio-focus-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: -4px; }
+.studio-focus-meta .link-btn:disabled { color: var(--muted); cursor: default; text-decoration: none; }
+
+.studio-focus .studio-stats { gap: 10px; }
+.studio-focus .studio-stat { padding: 10px 16px; min-width: 120px; border-radius: 12px; }
+.studio-focus .studio-stat-value { font-size: 26px; }
+.studio-focus .studio-stat-label { font-size: 13px; }
+
+.studio-focus-body { padding: 24px 24px 18px; gap: 12px; }
+.studio-focus-hint { font-size: 13px; }
+
+/* The fitted chart draws at 1:1, so these are real pixel sizes (FitChart assumes them). */
+.studio-fit { min-width: 0; }
+.studio-fit .collate-legend { font-size: 14px; margin-bottom: 12px; }
+.studio-fit .collate-swatch { width: 12px; height: 12px; }
+.studio-fit .collate-label { font-size: 15px; fill: var(--ink); }
+.studio-fit .collate-value { font-size: 15px; font-weight: 600; }
+.studio-fit.is-narrow .collate-label, .studio-fit.is-narrow .collate-value { font-size: 13px; }
+.studio-focus .collate-table { font-size: 15px; }
+.studio-focus .collate-table th, .studio-focus .collate-table td { padding: 11px 12px; }
+
+/* One line of provenance; the full query unfolds under it. */
+.studio-focus-prov { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; background: var(--surface); display: grid; gap: 10px; min-width: 0; }
+.studio-focus-prov > summary { display: flex; gap: 8px; align-items: baseline; cursor: pointer; font-size: 13px; color: var(--ink-2); min-width: 0; list-style: none; }
+.studio-focus-prov > summary::-webkit-details-marker { display: none; }
+.studio-focus-prov > summary::before { content: "▸"; color: var(--muted); flex: none; }
+.studio-focus-prov[open] > summary::before { content: "▾"; }
+.studio-focus-prov > summary > span { flex: none; }
+.studio-focus-prov-label { color: var(--muted); }
+.studio-focus-prov-q {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--ink-2);
+  font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+.studio-focus-prov[open] .studio-focus-prov-q { visibility: hidden; }
+
+/* The dashboard large: wider panels and bigger charts. */
+.studio-focus-dash .studio-dash-large { grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 16px; }
+.studio-focus-dash .studio-mini { padding: 18px; background: var(--surface); box-shadow: var(--shadow); border-radius: var(--radius); }
+.studio-focus-dash .studio-mini-head h3 { font-size: 17px; }
+
+@media (max-width: 640px) {
+  .studio-focus { gap: 12px; }
+  .studio-focus-head { flex-direction: column; align-items: stretch; }
+  .studio-focus-titles { flex-basis: auto; }
+  .studio-focus-actions > * { flex: 1 1 auto; }
+  .studio-focus .studio-stat { min-width: 0; flex: 1 1 calc(33% - 10px); padding: 8px 10px; }
+  .studio-focus .studio-stat-value { font-size: 20px; }
+  .studio-focus .studio-stat-label { font-size: 12px; }
+  .studio-focus-body { padding: 14px 12px 12px; }
+  .studio-focus-dash .studio-mini { padding: 14px 12px; }
+}
