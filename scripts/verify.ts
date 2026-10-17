@@ -1,12 +1,13 @@
 /**
  * Reproduces Collate's totals from Arkiv with no web app and no Collate code in the trust path
- * beyond @collate/core's pure functions. Prints the exact queries it runs.
+ * beyond @collate/core's pure functions. Prints the exact queries it runs: two, since Tiramisu meters
+ * every query (Q3 for the trusted observers, then Q4′ for every result, split by trust in memory).
  *
  *   npm run verify                         # Observer Group A
  *   npm run verify -- --coordinator 0x…    # any coordinator wallet
  *   npm run verify -- --quorum 2           # require 2 agreeing observers per unit (default 1)
  */
-import { computePanel, createCollate, renderWhere, type Consensus, type Row } from "@collate/core"
+import { computePanel, createCollate, partitionByTrust, renderWhere, type Consensus, type Row } from "@collate/core"
 import deployment from "../apps/web/src/deployment.json" with { type: "json" }
 import { resultsPanel } from "../apps/web/src/model/panels"
 
@@ -25,12 +26,11 @@ console.log(`  ${renderWhere(panel.trust!.listQuery)} AND $creator = ${coordinat
 const { trust } = await collate.resolveTrust(panel.trust!, block)
 for (const m of trust.members.values()) console.log(`  ${m.address}  ${m.label ?? ""}`)
 
-const creators = [...trust.members.keys()]
-console.log(`\nQ4 + Q8, results and corrections from those ${creators.length} wallets:`)
-console.log(`  ${renderWhere(panel.query)} AND ($creator = … OR …)`)
-const { rows } = await collate.fetchAll({ where: panel.query, creators, atBlock: block })
+console.log(`\nQ4′, results and corrections from any wallet (kept only if created by one of those ${trust.members.size}):`)
+console.log(`  ${renderWhere(panel.query)}`)
 const all = await collate.fetchAll({ where: panel.query, atBlock: block })
-console.log(`  ${rows.length} trusted entities; ${all.rows.length - rows.length} from other wallets ignored`)
+const { trusted: rows, ignored } = partitionByTrust(all.rows, trust)
+console.log(`  ${rows.length} trusted entities; ${ignored.length} from other wallets ignored`)
 
 const out = computePanel(panel, rows)
 const figures = (r: Row) => `${r.creator.slice(0, 8)} a=${r.attrs.votes_a} b=${r.attrs.votes_b} c=${r.attrs.votes_c}`
