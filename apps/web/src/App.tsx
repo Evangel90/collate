@@ -70,8 +70,8 @@ export function App() {
             anyone without our backend", not "impossible to stop".
           </p>
           <p>
-            All data is synthetic: a fictional election, fictional parties and units, and observers identified only by wallet and
-            alias. Open source under MIT ·{" "}
+            Not a real election: every result, party, ward, polling unit and observer is synthetic; only the state and LGA names are
+            real. Observers are identified only by wallet and alias. Open source under MIT ·{" "}
             <a href="https://github.com/Evangel90/collate" target="_blank" rel="noreferrer">
               github.com/Evangel90/collate
             </a>
