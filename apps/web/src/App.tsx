@@ -27,7 +27,10 @@ export function App() {
     <Landing />
 
   // Hash routing keeps the scroll position between pages, so start each page at the top.
-  useEffect(() => window.scrollTo(0, 0), [route.path])
+  // Braces matter: newer Chrome returns a Promise from scrollTo, which React would call as a cleanup.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [route.path])
 
   return (
     <div className="collate-root">
