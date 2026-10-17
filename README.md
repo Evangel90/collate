@@ -2,11 +2,13 @@
 
 **Election results nobody can quietly edit or switch off.**
 
-Collate is a public, tamper-evident election results board built on [Arkiv](https://arkiv.network), the Web3 database. Accredited observers post polling-unit results as Arkiv entities; anyone can watch totals by ward, LGA and state update live, straight from Arkiv, with no Collate server in the path.
+Collate is a public, tamper-evident election results board for low-trust elections, built on [Arkiv](https://arkiv.network), the Web3 database. A committee of fairly trusted observers posts polling-unit results as Arkiv entities; a unit's result counts only when a majority of the committee members who reported agree. Anyone can watch totals by ward, LGA and state update live, straight from Arkiv, with no Collate server in the path.
 
-Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance** and **Open Source**. All data is synthetic: a fictional election, fictional parties and units, and observers known only by wallet and alias.
+The engine underneath, [`@collate/core`](packages/core), knows nothing about elections. **Collate Studio** uses it to turn any Arkiv query, including other projects' data, into a live, trust-filtered, shareable dashboard.
 
-- **Live app:** https://collate-silk.vercel.app (static, no login, reads straight from Arkiv)
+Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance**, **Open Source** and **Security**. All data is synthetic: a fictional election, fictional parties and units, and observers known only by wallet and alias.
+
+- **Live app:** https://collate-silk.vercel.app (static, no login, reads straight from Arkiv): [results](https://collate-silk.vercel.app/#/results) · [Studio](https://collate-silk.vercel.app/#/studio)
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
 - **Friction report:** [`arkiv/friction.md`](arkiv/friction.md)
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
@@ -19,11 +21,24 @@ When an official results portal stalls, the public loses sight of the count exac
 ## What Collate does
 
 - **Observers** post each unit's result from the wallet their group accredited. It lands as a readonly Arkiv entity: nobody, including Collate, can edit it. A mistake is fixed with a correction that names the original; both stay public.
-- **Viewers** (no wallet needed) pick which observer group to trust. Collate reads that group's accreditations, then only results *created* by those wallets, and recomputes every total in the browser. Units where two trusted observers disagree are flagged, shown side by side, and left out of totals. Writes from unaccredited wallets are listed and ignored.
+- **Viewers** (no wallet needed) pick which observer group to trust. Collate reads that group's accreditations, then only results *created* by those wallets, and recomputes every total in the browser. Writes from unaccredited wallets are listed and ignored.
+- **Committee consensus decides each unit.** Collate keeps each observer's latest result for a unit and groups identical ones. The unit is **certified** when the largest group is a strict majority of the observers who reported and has at least *N* members (the quorum; the coordinator suggests it, the viewer can raise it). Otherwise it is **pending** (too few reports) or **contested** (no majority). Only certified units count; contested ones show every version side by side, and observers who disagree with a certified result are named as outliers, by wallet. One careless or compromised observer can no longer veto a unit, and cannot push a result through alone either.
 - **Every number** opens a proof dialog: the creator wallet, the entity on the explorer and its expiry. Results are created with permissionless extension, so **anyone** can keep them alive.
 - **No backend.** The app is a static build that talks only to Arkiv's public RPC. Take our site down and anyone can serve the same page, or query the entities directly, and see the same numbers.
 
-Honest limit: Arkiv's block production is still centralised during testnet, so the claim is "readable and verifiable by anyone without our backend", not "impossible to stop".
+Honest limits: Arkiv's block production is still centralised during testnet, so the claim is "readable and verifiable by anyone without our backend", not "impossible to stop". A quorum does not protect against a corrupt coordinator or *N* colluding observers; the defence is that viewers choose whom to trust and every result, outlier and correction stays on the record.
+
+## Collate Studio: the read side for Arkiv
+
+Arkiv's [ecosystem page](https://hub.arkiv.network/ecosystem) lists gaps across 116 projects under "Nobody built this yet". One of them is a **Query-to-Dashboard Studio**: "Every project here writes entities in — nobody ships the read side." Studio is that read side:
+
+- Build a panel with a form (filters, ranges, `$creator`, trust list, group-by, sums, consensus and quorum) or as JSON. Studio shows the exact Arkiv query it runs.
+- Results update live over WebSocket entity events and page past Arkiv's 200-entity limit at one pinned block.
+- Every panel is a link. Pin up to six panels to a dashboard that is also one link.
+- "Use in your app" generates the TypeScript or React code for the current panel with `@collate/core`.
+- Presets include **other teams' public data, read without asking**: Asli's drug-batch provenance entities (with a cloned batch from an unregistered wallet flagged and then ignored by a trust list) and haqclock's right-to-information cases.
+
+The same consensus rule also speaks to the "Multi-Writer Collaborative State" gap on that page: many single-owner entities from different wallets resolve to one agreed result, with authorship checked against `$creator`.
 
 ## What stays off Arkiv
 
@@ -41,7 +56,7 @@ Honest limit: Arkiv's block production is still centralised during testnet, so t
 ```
 collate/
 ├── packages/core/     @collate/core: live, trust-filtered Arkiv panels (+ optional React UI)
-├── apps/web/          Collate: public results, observer, coordinator and collate-core pages
+├── apps/web/          Collate: landing, results, observer, coordinator and Studio pages
 ├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals)
 ├── arkiv/             schema.md, friction.md, seed-transactions.md
 └── LICENSE            MIT
@@ -78,7 +93,7 @@ The seed is idempotent: each step queries Arkiv first and skips what is already 
 ## Reproduce every claim
 
 1. Open the live app, keep **Observer Group A** selected, and note the totals.
-2. Run `npm run verify`. It prints the exact queries (Q3, then Q4 + Q8), the trusted observers, how many writes were ignored, the disputes and the totals by state, read straight from Tiramisu. They match the page.
+2. Run `npm run verify`. It prints the exact queries (Q3, then Q4 + Q8), the trusted observers, how many writes were ignored, the certified, contested and pending units (with outliers) and the totals by state, read straight from Tiramisu. They match the page. Add `--quorum 2` to match the page with "Require at least 2 agreeing observers" selected.
 3. Switch to Group B on the page and run `npm run verify -- --coordinator <Group B address>`.
 4. Or skip our code entirely: query `type = "unit_result" AND election = "demo-2027"` with any Arkiv client and filter by the creators listed below.
 
@@ -106,7 +121,7 @@ All are fresh testnet wallets created for this project and hold no real funds.
 
 ## The demo dataset
 
-1 election (`demo-2027`), 2 observer groups, 12 observers, 48 polling units across 2 states, 4 LGAs and 8 wards, 3 fictional parties. Deliberate cases: two disputed units in Group A's view and one in Group B's, one confirmation (two observers agree), one correction, one unit left for the live demo, and one inflated result from an unaccredited wallet. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts).
+1 election (`demo-2027`), 2 observer groups, 12 observers, 48 polling units across 2 states, 4 LGAs and 8 wards, 3 fictional parties. Deliberate cases: in Group A's view, one unit certified 2 to 1 with a named outlier and one contested unit (1 against 1); one contested unit in Group B's view; six second counts that agree with the first observer, so raising the quorum to 2 still leaves certified units; one correction; one unit left for the live demo; and one inflated result from an unaccredited wallet. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts).
 
 ## Built with
 
