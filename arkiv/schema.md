@@ -15,7 +15,7 @@ Source of truth in code: [`apps/web/src/model/schema.ts`](../apps/web/src/model/
 
 | Type | Created by | Attributes (type) | Payload | Flags | Entity Expiration | Lifetime Extension |
 | --- | --- | --- | --- | --- | --- | --- |
-| `election` | Coordinator | `type`, `election` (str); `opens_at`, `closes_at` (u64, unix s) | `name`, `description`, `parties[]` (`field`, `name`, `short`) | readonly | 90 days | Coordinator, if the count runs long |
+| `election` | Coordinator | `type`, `election` (str); `opens_at`, `closes_at` (u64, unix s) | `name`, `description`, `parties[]` (`field`, `name`, `short`), optional `quorum` (agreeing observers the coordinator recommends per unit) | readonly | 90 days | Coordinator, if the count runs long |
 | `unit` | Coordinator | `type`, `election`, `unit_code`, `ward`, `lga`, `state` (str); `registered` (u64) | `name` (display name) | readonly | 90 days | Coordinator, with the election |
 | `accreditation` | Coordinator | `type`, `election`, `observer` (str, lowercase address) | `alias` (synthetic, e.g. "Observer 07") | readonly | `closes_at` + 7 days (`ExpirationTime.atDate`) | Coordinator extends the lease 7 days at a time; **revoked by deleting it** (readonly does not block delete) |
 | `unit_result` | Observer | `type`, `election`, `unit_code`, `ward`, `lga`, `state` (str); `votes_a`, `votes_b`, `votes_c`, `rejected`, `accredited`, `submitted_at` (u64) | `photo_sha256` (hex or null), `note` | readonly **+ permissionless extension** | 30 days | **Anyone** (Extend button on the results page) |
@@ -27,12 +27,17 @@ Parties are fictional and fixed to three slots (`votes_a`, `votes_b`, `votes_c`)
 
 1. **Trust:** the trusted wallets are the `observer` values of `accreditation` entities created by the coordinator the viewer chose (Q3). Results are fetched only from those creators (Q4/Q8).
 2. **Corrections:** a `correction` replaces the entity named in `corrects` **only if both have the same `$creator`**. A correction aimed at someone else's result is dropped. The latest of several corrections wins. Originals stay visible.
-3. **Disputes:** results are grouped by `unit_code`; the latest entry per creator is kept. If trusted creators disagree on any of `votes_a`, `votes_b`, `votes_c`, `rejected`, `accredited`, the unit is **disputed**: shown with every version, excluded from totals. Agreeing entries count once.
-4. **Totals** by state, LGA and ward are summed in the browser from what is left.
+3. **Consensus:** results are grouped by `unit_code`; the latest entry per creator is kept. Creators whose entries match on all of `votes_a`, `votes_b`, `votes_c`, `rejected`, `accredited` agree. With `top` the largest agreeing set and `sources` the number of creators who reported the unit:
+   - **certified** when `top` has at least `quorum` creators and is a strict majority (`top > sources / 2`). The unit counts once; creators outside `top` are shown as **outliers**.
+   - **pending** when not certified and fewer than `quorum` creators have reported. Not counted.
+   - **contested** otherwise. Shown with every version, not counted.
+
+   `quorum` defaults to 1, so one report counts, one against one is contested and two against one counts with one outlier. The election payload's optional `quorum` sets the starting value; each viewer can raise or lower it (1–3) on the results page, which recomputes in the browser without new queries. One bad observer can no longer block a unit that a majority agrees on.
+4. **Totals** by state, LGA and ward are summed in the browser from certified units only.
 
 ## Not stored, computed in the browser
 
-Totals by ward, LGA and state; disputes; missing units (Q2 units minus reported units); "ignored" writes from untrusted wallets.
+Totals by ward, LGA and state; each unit's consensus status (certified, contested, pending) and outliers; missing units (Q2 units minus reported units); "ignored" writes from untrusted wallets.
 
 ## Queries the app runs
 
