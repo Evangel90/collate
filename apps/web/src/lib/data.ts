@@ -1,5 +1,6 @@
-import { describeError, encodePanel, eq, or, type Panel, type Row } from "@collate/core"
+import { describeError, encodePanel, type Panel, type Row } from "@collate/core"
 import { useEffect, useState } from "react"
+import { setupQuery } from "../model/panels"
 import type { Party } from "../model/schema"
 import { collate } from "./collate"
 import { href } from "./router"
@@ -21,23 +22,33 @@ export type ElectionInfo = {
   error?: string
 }
 
+/** The creators a setup read covers: the chosen coordinator plus any others on the page, sorted. */
+const scopeOf = (coordinator: string, also: readonly string[]) => [...new Set([coordinator, ...also].map((c) => c.toLowerCase()))].sort()
+
 /**
- * Q1 and Q2 in one query: the election and its polling units, as the chosen coordinator
- * registered them.
+ * Q1, Q2 and Q3 in one query: the election and its polling units as `coordinator` registered them,
+ * read together with every coordinator in `also` and their accreditations. Tiramisu prices every
+ * query the same (100 units) whatever it returns, so one broad read is cheaper than several narrow
+ * ones; switching coordinator, and the results panel's trust list, are answered from it by
+ * collate-core's session cache.
  */
-export function useElection(election: string, coordinator: string): ElectionInfo {
+export function useElection(election: string, coordinator: string, also: readonly string[] = []): ElectionInfo {
   const [info, setInfo] = useState<ElectionInfo>({ row: undefined, name: election, parties: DEFAULT_PARTIES, units: [], loading: true })
+  const [attempt, setAttempt] = useState(0)
+  const scope = scopeOf(coordinator, also).join(",")
 
   useEffect(() => {
     let cancelled = false
+    let retry: ReturnType<typeof setTimeout> | undefined
     setInfo((prev) => ({ ...prev, loading: true, error: undefined }))
-    // One query for both: Tiramisu prices every query the same (100 units), whatever it returns.
+    const mine = coordinator.toLowerCase()
     collate
-      .fetchAll({ where: [or(eq("type", "election"), eq("type", "unit")), eq("election", election)], creators: [coordinator], payload: true })
+      .fetchAll({ where: setupQuery(election), creators: scope.split(","), payload: true })
       .then(({ rows }) => {
         if (cancelled) return
-        const row = rows.find((r) => r.attrs.type === "election")
-        const units = rows.filter((r) => r.attrs.type === "unit")
+        const own = rows.filter((r) => r.creator === mine)
+        const row = own.find((r) => r.attrs.type === "election")
+        const units = own.filter((r) => r.attrs.type === "unit")
         const payload = (row?.payload ?? {}) as { name?: string; parties?: Party[]; quorum?: unknown }
         setInfo({
           row,
@@ -48,11 +59,18 @@ export function useElection(election: string, coordinator: string): ElectionInfo
           loading: false,
         })
       })
-      .catch((error) => !cancelled && setInfo((prev) => ({ ...prev, loading: false, error: describeError(error).message })))
+      .catch((error) => {
+        if (cancelled) return
+        const { message, retryAfterSeconds } = describeError(error)
+        setInfo((prev) => ({ ...prev, loading: false, error: message }))
+        // A spent read budget says when it resets: try once more then.
+        if (retryAfterSeconds) retry = setTimeout(() => setAttempt((n) => n + 1), retryAfterSeconds * 1000)
+      })
     return () => {
       cancelled = true
+      clearTimeout(retry)
     }
-  }, [election, coordinator])
+  }, [election, coordinator, scope, attempt])
 
   return info
 }

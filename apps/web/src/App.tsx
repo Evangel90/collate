@@ -1,5 +1,6 @@
 import { collateCss } from "@collate/core/ui"
 import { useEffect } from "react"
+import { BudgetNotice, QueryBadge } from "./components/Budget"
 import { ThemeToggle } from "./components/ThemeToggle"
 import { Icon } from "./components/ui"
 import { href, useRoute } from "./lib/router"
@@ -61,7 +62,9 @@ export function App() {
         </div>
       </div>
       <main className="shell">
+        <BudgetNotice />
         {page}
+        <QueryBadge />
         <footer className="site">
           <p>
             Collate and Collate Studio run on one open engine, collate-core. Every number is read straight from Arkiv's public RPC

@@ -1,8 +1,9 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
 import { computePanel, renderWhere, type AggRow, type Consensus, type PanelState, type Row } from "@collate/core"
 import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { isAddress } from "viem"
+import { useRateLimited } from "../components/Budget"
 import { CardTitle, Icon, Skeleton } from "../components/ui"
 import { collate, deployment, nameOf, prefs, type Coordinator } from "../lib/collate"
 import { exploreHref, figures, timeAgo, useElection } from "../lib/data"
@@ -44,15 +45,18 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
   const [view, setView] = useState<"chart" | "table">("chart")
   const [proof, setProof] = useState<Proof | undefined>()
 
-  const info = useElection(election, coordinator.address)
+  // Reads every coordinator's setup at once (before the panel, so its trust list is answered from it).
+  const info = useElection(election, coordinator.address, useMemo(() => coordinators.map((c) => c.address), [coordinators]))
+  const limited = useRateLimited()
   // The viewer's bar for consensus; until they pick one, the coordinator's recommendation, else 1.
   const [quorumChoice, setQuorumChoice] = useState<number | undefined>()
   const quorum = quorumChoice ?? info.quorum ?? 1
-  const fetched = useMemo(() => resultsPanel(election, coordinator.address, groupBy), [election, coordinator.address, groupBy])
+  // What is read from Arkiv depends only on the election and the coordinator. Grouping and quorum
+  // are applied in the browser to the rows already read, so changing them costs no queries.
+  const fetched = useMemo(() => resultsPanel(election, coordinator.address, "state"), [election, coordinator.address])
   const { state: raw } = usePanel(collate, fetched)
-  // Consensus is recomputed in the browser from the rows already read, so changing the quorum
-  // costs no Arkiv queries. `panel` is what the page shows and links to.
-  const panel = useMemo(() => ({ ...fetched, quorum }), [fetched, quorum])
+  // `panel` is what the page shows and links to.
+  const panel = useMemo(() => resultsPanel(election, coordinator.address, groupBy, quorum), [election, coordinator.address, groupBy, quorum])
   const state = useMemo(() => raw && { ...raw, ...computePanel(panel, raw.rows) }, [raw, panel])
   const parties = info.parties
 
@@ -128,8 +132,9 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
         <QuorumControl quorum={quorum} recommended={info.quorum} onChange={setQuorumChoice} />
       </section>
 
-      {state?.status === "error" && <p className="notice notice-error">Could not read from Arkiv: {state.error}</p>}
-      {info.error && <p className="notice notice-error">Could not load the election: {info.error}</p>}
+      {/* A spent read budget is explained once, by the page-wide notice. */}
+      {state?.status === "error" && !limited && <p className="notice notice-error">Could not read from Arkiv: {state.error}</p>}
+      {info.error && !limited && <p className="notice notice-error">Could not load the election: {info.error}</p>}
       {!info.loading && !info.error && !info.row && (
         <p className="notice notice-warn">
           No election “{election}” created by {coordinator.name} ({coordinator.address.slice(0, 10)}…) was found on Arkiv. Check the link, or
@@ -186,10 +191,10 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
 
       <div className="grid cols-2">
         <ConsensusCard state={state} parties={parties} quorum={quorum} onProof={(title, rows) => setProof({ title, rows })} />
-        <Latest version={state?.rows.length ?? 0} election={election} coordinator={coordinator.address} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
+        <Latest state={state} election={election} coordinator={coordinator.address} opensAt={Number(info.row?.attrs.opens_at ?? 0)} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
         <Missing units={info.units} state={state} />
         <Corrections state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
-        <Suspicious version={state?.rows.length ?? 0} election={election} coordinator={coordinator.address} onProof={(title, rows) => setProof({ title, rows })} />
+        <Suspicious main={state} election={election} coordinator={coordinator.address} onProof={(title, rows) => setProof({ title, rows })} />
         <Ignored state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
       </div>
 
@@ -436,41 +441,52 @@ function ConsensusCard({ state, parties, quorum, onProof }: { state: PanelState 
   )
 }
 
-/**
- * Secondary panels run their own range queries but no live subscription of their own: they refresh
- * when the main panel's trusted rows change, which keeps an idle page at zero queries.
- */
-function useFollow(handle: { refresh: () => Promise<void> } | undefined, version: number) {
-  const [first] = useState(version)
-  useEffect(() => {
-    if (handle && version !== first) void handle.refresh()
-  }, [handle, version, first])
+type Window = { id: string; label: string; seconds?: number }
+const WINDOWS: Window[] = [
+  { id: "1h", label: "1 h", seconds: 3600 },
+  { id: "24h", label: "24 h", seconds: 86_400 },
+  { id: "7d", label: "7 d", seconds: 7 * 86_400 },
+  { id: "all", label: "Since polls opened" },
+]
+
+/** The narrowest window that still shows the newest submission, so the card is never empty by default. */
+function autoWindow(newest: number, now: number): Window {
+  return WINDOWS.find((w) => w.seconds !== undefined && now - newest <= w.seconds) ?? WINDOWS[WINDOWS.length - 1]!
 }
 
-function Latest({ version, election, coordinator, parties, onProof }: { version: number; election: string; coordinator: string; parties: Party[]; onProof: ProofHandler }) {
-  const [hours, setHours] = useState(24)
-  // Rounded to the minute so the panel config, and with it the live subscription, stays stable.
-  const since = useMemo(() => Math.floor(Date.now() / 60_000) * 60 - hours * 3600, [hours])
+const submitted = (r: Row) => Number(r.attrs.submitted_at ?? 0)
+
+/**
+ * The Q6 range (`submitted_at > since`) applied in the browser to the trusted rows the results
+ * panel already holds, so every window, and every live update, costs no extra query. The exact
+ * Arkiv query is shown below the card, and "Open in Studio" runs it on Arkiv.
+ */
+function Latest({ state, election, coordinator, opensAt, parties, onProof }: { state: PanelState | undefined; election: string; coordinator: string; opensAt: number; parties: Party[]; onProof: ProofHandler }) {
+  const [choice, setChoice] = useState<string | undefined>()
+  const trusted = state?.rows ?? []
+  // Rounded to the minute so the query shown below stays stable while the page is open.
+  const now = Math.floor(Date.now() / 60_000) * 60
+  const newest = trusted.reduce((m, r) => Math.max(m, submitted(r)), 0)
+  const span = WINDOWS.find((w) => w.id === choice) ?? autoWindow(newest, now)
+  const since = span.seconds === undefined ? opensAt : now - span.seconds
   const panel = useMemo(() => latestPanel(election, coordinator, since), [election, coordinator, since])
-  const { state, handle } = usePanel(collate, panel)
-  useFollow(handle, version)
-  const rows = [...(state?.current ?? [])].sort((a, b) => Number(b.attrs.submitted_at ?? 0) - Number(a.attrs.submitted_at ?? 0))
+  const rows = trusted.filter((r) => submitted(r) > since).sort((a, b) => submitted(b) - submitted(a))
   return (
     <section className="card" aria-labelledby="latest-h">
       <div className="card-head">
         <CardTitle icon="clock" id="latest-h">Latest submissions</CardTitle>
         <div className="seg" role="group" aria-label="Window">
-          {[1, 6, 24].map((h) => (
-            <button key={h} type="button" aria-pressed={hours === h} onClick={() => setHours(h)}>
-              {h} h
+          {WINDOWS.map((w) => (
+            <button key={w.id} type="button" aria-pressed={span.id === w.id} onClick={() => setChoice(w.id)}>
+              {w.label}
             </button>
           ))}
         </div>
       </div>
-      {state?.status === "loading" ? (
+      {!state || state.status === "loading" ? (
         <Skeleton lines={3} />
       ) : rows.length === 0 ? (
-        <p className="muted">Nothing submitted in the last {hours} h.</p>
+        <p className="muted">{span.seconds === undefined ? "Nothing submitted yet." : `Nothing submitted in the last ${span.label}.`}</p>
       ) : (
         <ul className="feed">
           {rows.slice(0, 8).map((r) => (
@@ -487,7 +503,11 @@ function Latest({ version, election, coordinator, parties, onProof }: { version:
           ))}
         </ul>
       )}
-      <PanelFoot state={state} panel={panel} note={`Range query on submitted_at · ${rows.length} in window`} />
+      <PanelFoot
+        state={state}
+        panel={panel}
+        note={`Range query on submitted_at, applied here to the rows already read (no extra query) · ${rows.length} in window`}
+      />
     </section>
   )
 }
@@ -549,19 +569,57 @@ function Corrections({ state, parties, onProof }: { state: PanelState | undefine
   )
 }
 
-function Suspicious({ version, election, coordinator, onProof }: { version: number; election: string; coordinator: string; onProof: ProofHandler }) {
+const THRESHOLDS = [5, 8, 10]
+const LOWEST = THRESHOLDS[0]!
+const rejected = (r: Row) => Number(r.attrs.rejected ?? 0)
+
+/** True once `ref` comes near the viewport, so a card's own query runs only if someone looks. */
+function useSeen(ref: RefObject<HTMLElement>): boolean {
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (seen || !el) return
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true)
+      return
+    }
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setSeen(true), { rootMargin: "200px" })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, seen])
+  return seen
+}
+
+/**
+ * Q7 stays a genuine range query on Arkiv (`rejected > 5` on a typed u64), run once when the card
+ * scrolls into view; higher thresholds narrow it in the browser. It reads results from any wallet
+ * and applies the trust list locally, so both observer groups share the one read. Results posted
+ * after its snapshot arrive through the main panel's live updates, so it never queries again.
+ */
+function Suspicious({ main, election, coordinator, onProof }: { main: PanelState | undefined; election: string; coordinator: string; onProof: ProofHandler }) {
   const [threshold, setThreshold] = useState(8)
+  const ref = useRef<HTMLElement>(null)
+  const seen = useSeen(ref)
+  const limited = useRateLimited()
+  const fetched = useMemo(() => ({ ...suspiciousPanel(election, coordinator, LOWEST), includeIgnored: true }), [election, coordinator])
+  const { state } = usePanel(collate, seen ? fetched : undefined)
   const panel = useMemo(() => suspiciousPanel(election, coordinator, threshold), [election, coordinator, threshold])
-  const { state, handle } = usePanel(collate, panel)
-  useFollow(handle, version)
+  const rows = useMemo(() => {
+    if (state?.status !== "ready") return []
+    const known = new Set(state.rows.map((r) => r.key))
+    const later = (main?.rows ?? []).filter((r) => r.createdAt > (state.block ?? 0n) && rejected(r) > LOWEST && !known.has(r.key))
+    // The main panel sees corrections outside this range too, so it knows what has been replaced.
+    const replaced = new Set((main?.superseded ?? []).map((l) => l.original.key))
+    return computePanel(panel, [...state.rows, ...later]).current.filter((r) => rejected(r) > threshold && !replaced.has(r.key))
+  }, [state, main?.rows, main?.superseded, panel, threshold])
   return (
-    <section className="card" aria-labelledby="suspicious-h">
+    <section className="card" aria-labelledby="suspicious-h" ref={ref}>
       <div className="card-head">
         <CardTitle icon="flame" id="suspicious-h">High rejected ballots</CardTitle>
         <label className="toolbar">
           <span className="toolbar-label">More than</span>
           <select value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="btn btn-small">
-            {[5, 8, 10].map((t) => (
+            {THRESHOLDS.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
@@ -569,18 +627,24 @@ function Suspicious({ version, election, coordinator, onProof }: { version: numb
           </select>
         </label>
       </div>
-      {state?.status === "loading" ? (
+      {state?.status === "error" ? (
+        <p className="muted">{limited ? "Waiting for Arkiv's read budget to reset." : `Could not run the range query: ${state.error}`}</p>
+      ) : state?.status !== "ready" ? (
         <Skeleton lines={3} />
       ) : (
         <RowTable
-          rows={state?.current ?? []}
+          rows={rows}
           columns={[{ field: "rejected", label: "Rejected" }, { field: "accredited", label: "Accredited" }]}
           label={(r) => String(r.attrs.unit_code)}
           onSelect={(r) => onProof(String(r.attrs.unit_code), [r])}
           empty={`No units with more than ${threshold} rejected ballots.`}
         />
       )}
-      <PanelFoot state={state} panel={panel} note={`Range query: rejected > ${threshold}`} />
+      <PanelFoot
+        state={state}
+        panel={panel}
+        note={`Range query on Arkiv: rejected > ${LOWEST}${threshold === LOWEST ? "" : `, narrowed to > ${threshold} in the browser`}`}
+      />
     </section>
   )
 }

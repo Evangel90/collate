@@ -1,5 +1,5 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
-import { eq, type Row } from "@collate/core"
+import type { Row } from "@collate/core"
 import { expiresIn, usePanel } from "@collate/core/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { isAddress } from "viem"
@@ -8,7 +8,7 @@ import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES } from "../lib/data"
 import { href } from "../lib/router"
 import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
-import { resultsPanel } from "../model/panels"
+import { resultsPanel, setupQuery } from "../model/panels"
 import { accreditationEntity, electionEntity, unitEntity, type UnitInput } from "../model/schema"
 
 const LEASE_DAYS = 7
@@ -67,25 +67,28 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
   const [units, setUnits] = useState<Row[]>([])
   const [block, setBlock] = useState<bigint | undefined>()
 
-  const load = useCallback(async () => {
-    const mine = [wallet.address]
-    const [e, a, u] = await Promise.all([
-      collate.fetchAll({ where: [eq("type", "election"), eq("election", election)], creators: mine }),
-      collate.fetchAll({ where: [eq("type", "accreditation"), eq("election", election)], creators: mine, payload: true }),
-      collate.fetchAll({ where: [eq("type", "unit"), eq("election", election)], creators: mine }),
-    ])
-    setElectionRow(e.rows[0] ?? null)
-    setAccreditations(a.rows)
-    setUnits(u.rows)
-    setBlock(e.block)
-  }, [wallet.address, election])
+  /**
+   * The election, its units and the accreditations in one query (Tiramisu prices each query the
+   * same); the results panel below resolves its trust list from it too. `fresh` after a write.
+   */
+  const load = useCallback(
+    async (fresh = false) => {
+      const { rows, block } = await collate.fetchAll({ where: setupQuery(election), creators: [wallet.address], payload: true, fresh })
+      setElectionRow(rows.find((r) => r.attrs.type === "election") ?? null)
+      setAccreditations(rows.filter((r) => r.attrs.type === "accreditation"))
+      setUnits(rows.filter((r) => r.attrs.type === "unit"))
+      setBlock(block)
+    },
+    [wallet.address, election],
+  )
+  const reload = useCallback(() => void load(true), [load])
 
   useEffect(() => {
     void load()
   }, [load])
 
   if (electionRow === undefined) return <section className="card"><Skeleton lines={3} /></section>
-  if (electionRow === null) return <CreateElection wallet={wallet} election={election} onCreated={load} />
+  if (electionRow === null) return <CreateElection wallet={wallet} election={election} onCreated={reload} />
 
   const closesAt = Number(electionRow.attrs.closes_at ?? 0)
   return (
@@ -99,7 +102,7 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
         </div>
         <p className="muted">Share this link: anyone who opens it counts only results from the observers you accredit, recomputed in their own browser.</p>
       </section>
-      <Accreditations wallet={wallet} election={election} closesAt={closesAt} rows={accreditations} block={block} onChange={load} />
+      <Accreditations wallet={wallet} election={election} closesAt={closesAt} rows={accreditations} block={block} onChange={reload} />
       <MissingUnits wallet={wallet} election={election} units={units} />
     </>
   )

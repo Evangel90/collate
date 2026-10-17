@@ -8,9 +8,11 @@ import { DEFAULT_PARTIES, figures, useElection } from "../lib/data"
 import { sha256File } from "../lib/hash"
 import { href } from "../lib/router"
 import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
+import { setupQuery } from "../model/panels"
 import { checkFigures, correctionEntity, resultEntity, type ResultFigures } from "../model/schema"
 
 type Accreditation = { coordinator: string; group: string; row: Row }
+const COORDINATORS = deployment.coordinators.map((c) => c.address)
 const EMPTY: Record<keyof ResultFigures, string> = { votes_a: "", votes_b: "", votes_c: "", rejected: "", accredited: "" }
 
 export function Observe() {
@@ -20,13 +22,17 @@ export function Observe() {
   const [mine, setMine] = useState<Row[]>([])
   const [block, setBlock] = useState<bigint | undefined>()
 
-  const load = useCallback(async (w: Wallet) => {
+  /** `fresh` after posting, so the new result shows instead of a cached list. */
+  const load = useCallback(async (w: Wallet, fresh = false) => {
     setAccreditations(undefined)
-    const coordinators = deployment.coordinators.map((c) => c.address)
+    const coordinators = COORDINATORS
+    // The setup read (election, units, accreditations of every coordinator) is what the form needs
+    // anyway; started first, it also answers Q9 below in the browser, so this page costs 2 queries.
+    void collate.fetchAll({ where: setupQuery(election), creators: coordinators, payload: true }).catch(() => undefined)
     const [acc, results] = await Promise.all([
       // Accreditations naming this wallet, but only those a known coordinator created.
       collate.fetchAll({ where: [eq("type", "accreditation"), eq("election", election), eq("observer", w.address)], creators: coordinators }),
-      collate.fetchAll({ where: [eq("election", election)], creators: [w.address] }),
+      collate.fetchAll({ where: [eq("election", election)], creators: [w.address], fresh }),
     ])
     setBlock(acc.block)
     setAccreditations(
@@ -73,7 +79,7 @@ export function Observe() {
           wallet={wallet}
           coordinator={accreditations[0]!.coordinator}
           mine={mine}
-          onPosted={() => void load(wallet)}
+          onPosted={() => void load(wallet, true)}
         />
       )}
     </div>
@@ -110,7 +116,8 @@ function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet
 
 function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; coordinator: string; mine: Row[]; onPosted: () => void }) {
   const election = deployment.election
-  const info = useElection(election, coordinator)
+  // Same scope as the page's setup read, so the session cache answers it.
+  const info = useElection(election, coordinator, COORDINATORS)
   const parties = info.parties.length ? info.parties : DEFAULT_PARTIES
   const [unitCode, setUnitCode] = useState("")
   const [values, setValues] = useState(EMPTY)

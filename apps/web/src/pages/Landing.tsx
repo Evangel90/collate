@@ -1,8 +1,9 @@
-import { describeError, eq } from "@collate/core"
+import { describeError } from "@collate/core"
 import { useEffect, useState, type ReactNode } from "react"
 import { CardTitle, Icon } from "../components/ui"
 import { collate, deployment } from "../lib/collate"
 import { href } from "../lib/router"
+import { resultsQuery } from "../model/panels"
 
 const FAUCET = "https://hub.arkiv.network/faucet"
 const HUB_ECOSYSTEM = "https://hub.arkiv.network/ecosystem"
@@ -106,8 +107,9 @@ type Stat =
   | { status: "error"; message: string }
 
 /**
- * One paginated read (plus the head block): every unit result for the demo election, from any
- * wallet, without payloads. Kept small because Tiramisu meters anonymous queries.
+ * One paginated read (plus the head block): every result and correction for the demo election,
+ * from any wallet, without payloads. It is exactly the results page's own read (Q4′), so
+ * collate-core's session cache lets the two share one query; corrections are left out of the count.
  */
 function useDemoStat(): Stat {
   const [stat, setStat] = useState<Stat>({ status: "loading" })
@@ -117,9 +119,10 @@ function useDemoStat(): Stat {
     let cancelled = false
     let retry: ReturnType<typeof setTimeout> | undefined
     collate
-      .fetchAll({ where: [eq("type", "unit_result"), eq("election", deployment.election)] })
-      .then(({ rows, block }) => {
+      .fetchAll({ where: resultsQuery(deployment.election) })
+      .then(({ rows: all, block }) => {
         if (cancelled) return
+        const rows = all.filter((r) => r.attrs.type === "unit_result")
         setStat({ status: "ready", results: rows.length, wallets: new Set(rows.map((r) => r.creator.toLowerCase())).size, block })
       })
       .catch((error) => {

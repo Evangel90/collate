@@ -1,5 +1,5 @@
 /** The panel configs Collate runs through @collate/core. Each is also an "Open in Studio" link. */
-import { eq, gt, or, v, type Panel, type TrustConfig } from "@collate/core"
+import { eq, gt, or, v, type Panel, type TrustConfig, type Where } from "@collate/core"
 import { PARTY_FIELDS } from "./schema"
 
 export function trustFor(election: string, coordinator: string): TrustConfig {
@@ -13,13 +13,31 @@ export function trustFor(election: string, coordinator: string): TrustConfig {
 const resultTypes = or(eq("type", "unit_result"), eq("type", "correction"))
 
 /**
+ * Q4′: every result and correction for the election, from any wallet. The results page, its
+ * "Open in Studio" link and the landing page's live stat all read exactly this, so collate-core's
+ * session cache answers all of them with one query.
+ */
+export function resultsQuery(election: string): Where[] {
+  return [resultTypes, eq("election", election)]
+}
+
+/**
+ * Q1+Q2+Q3 in one query: the election, its polling units and the accreditations, for every
+ * coordinator on the page at once. Trust resolution (Q3) and switching group are then answered
+ * from it in the browser by collate-core's cache, at no extra query.
+ */
+export function setupQuery(election: string): Where[] {
+  return [or(eq("type", "election"), eq("type", "unit"), eq("type", "accreditation")), eq("election", election)]
+}
+
+/**
  * Q4 plus Q8: results and corrections, trust-filtered by the chosen coordinator. A unit counts
  * only when at least `quorum` trusted observers agree and they are a majority of those who reported.
  */
 export function resultsPanel(election: string, coordinator: string, groupBy: "state" | "lga" | "ward", quorum?: number): Panel {
   return {
     title: `Votes by ${groupBy.toUpperCase() === "LGA" ? "LGA" : groupBy}`,
-    query: [resultTypes, eq("election", election)],
+    query: resultsQuery(election),
     trust: trustFor(election, coordinator),
     supersedeField: "corrects",
     disputeKey: "unit_code",
@@ -40,10 +58,10 @@ export function statePanel(election: string, coordinator: string, state: string)
   return { ...resultsPanel(election, coordinator, "lga"), title: `${state}: votes by LGA`, query: [resultTypes, eq("election", election), eq("state", state)] }
 }
 
-/** Q6: results submitted in the last hour (range on a u64 attribute). */
+/** Q6: results submitted after a unix time (range on a u64 attribute). */
 export function latestPanel(election: string, coordinator: string, sinceSeconds: number): Panel {
   return {
-    title: "Submitted in the last hour",
+    title: "Latest submissions",
     query: [resultTypes, eq("election", election), gt("submitted_at", v.u64(sinceSeconds))],
     trust: trustFor(election, coordinator),
     view: "table",
