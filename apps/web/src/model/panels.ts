@@ -1,4 +1,4 @@
-/** The panel configs Collate runs through @collate/core. Each is also an "Open in collate-core" link. */
+/** The panel configs Collate runs through @collate/core. Each is also an "Open in Studio" link. */
 import { eq, gt, or, v, type Panel, type TrustConfig } from "@collate/core"
 import { PARTY_FIELDS } from "./schema"
 

@@ -100,7 +100,7 @@ function MiniPanel({ panel, onEdit, onRemove, onProof }: { panel: StudioPanel; o
       <footer className="studio-mini-foot">
         <span className="muted">
           {state?.status === "ready"
-            ? `${state.rows.length} entities${state.ignored.length ? ` · ${state.ignored.length} ignored` : ""}${state.disputes.length ? ` · ${state.disputes.length} disputed` : ""}`
+            ? `${state.rows.length} entities${state.ignored.length ? ` · ${state.ignored.length} ignored` : ""}${state.disputes.length ? ` · ${state.disputes.length} contested` : ""}`
             : "Reading from Arkiv…"}
         </span>
         <span className="row">

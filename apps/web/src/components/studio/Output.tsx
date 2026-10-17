@@ -93,7 +93,10 @@ export function Output({ panel, state, handle, shareLink, onProof, pin }: Props)
             onClick={state?.ignored.length ? () => onProof(`${state.ignored.length} entities from wallets outside the trust list (not counted)`, state.ignored) : undefined}
           />
         )}
-        {panel.disputeKey && <Stat label="disputed" value={state?.status === "ready" ? state.disputes.length : "…"} tone={state?.disputes.length ? "critical" : undefined} />}
+        {panel.disputeKey && <Stat label="contested" value={state?.status === "ready" ? state.disputes.length : "…"} tone={state?.disputes.length ? "critical" : undefined} />}
+        {panel.disputeKey && (panel.quorum ?? 1) > 1 && (
+          <Stat label="pending" value={state?.status === "ready" ? state.consensus.filter((c) => c.status === "pending").length : "…"} />
+        )}
         {panel.supersedeField && <Stat label="corrected" value={state?.status === "ready" ? state.superseded.length : "…"} />}
         <Stat label="block" value={state?.block !== undefined ? state.block.toLocaleString("en") : "…"} />
       </div>
@@ -135,7 +138,7 @@ export function Output({ panel, state, handle, shareLink, onProof, pin }: Props)
       {state?.status === "ready" && state.disputes.length > 0 && (
         <div className="studio-disputes">
           <h3 className="studio-subhead">
-            Disputed: sources disagree on {compare.length ? compare.join(", ") : "the compared fields"}, so these are not counted
+            Contested: no version of {compare.length ? compare.join(", ") : "the compared fields"} has a strict majority of sources, so these are not counted
           </h3>
           <ul>
             {state.disputes.slice(0, 8).map((d) => (

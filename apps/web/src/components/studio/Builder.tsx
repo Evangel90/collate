@@ -156,8 +156,9 @@ export function Builder({ draft, onChange, fields, dirty, error, onRun, onApplyJ
           <summary>Consensus and corrections</summary>
           <div className="studio-details-body">
             <p className="studio-hint">
-              Group entities by a key; when sources disagree on the compared fields, the group is shown as disputed and left out of
-              totals instead of being silently counted.
+              Group entities by a key and keep each source's latest entry. A group counts once a strict majority of its sources agree on the
+              compared fields, with at least Quorum agreeing. Otherwise it is contested (or pending, if too few sources reported) and left
+              out of totals instead of being silently counted.
             </p>
             <div className="field-row">
               <label className="field">

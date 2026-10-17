@@ -16,10 +16,9 @@ const DEFAULT = PRESETS[0]!
 const ECOSYSTEM = "https://hub.arkiv.network/ecosystem"
 const CORE_SOURCE = "https://github.com/Evangel90/collate/tree/main/packages/core"
 
-/** The page answers on /studio and /explore; links keep whichever one the viewer used. */
+/** The page also answers on /explore for old links, but every link it writes uses /studio. */
 function currentPath() {
-  const path = window.location.hash.replace(/^#/, "").split("?")[0]
-  return path === "/studio" ? "/studio" : "/explore"
+  return "/studio"
 }
 
 /** Checks a config the way the engine will read it, so a bad one fails here and not mid-request. */

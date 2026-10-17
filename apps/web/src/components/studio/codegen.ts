@@ -144,7 +144,7 @@ export function Dashboard() {
       ${body}
       <p>
         {state.rows.length} entities at block {String(state.block)}
-        {state.disputes.length ? \` · \${state.disputes.length} disputed\` : ""}
+        {state.disputes.length ? \` · \${state.disputes.length} contested\` : ""}
       </p>
     </div>
   )

@@ -57,9 +57,9 @@ export function useElection(election: string, coordinator: string): ElectionInfo
   return info
 }
 
-/** Link to the general collate-core page with this panel loaded. */
+/** Link to Studio with this panel loaded. */
 export function exploreHref(panel: Panel): string {
-  return href("/explore", { panel: encodePanel(panel) })
+  return href("/studio", { panel: encodePanel(panel) })
 }
 
 export function figures(row: Row, parties: Party[]): string {

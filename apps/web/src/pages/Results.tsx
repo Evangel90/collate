@@ -276,7 +276,7 @@ function PanelFoot({ state, panel, note }: { state: PanelState | undefined; pane
     <div className="stack">
       <div className="card-foot">
         {note && <span>{note}</span>}
-        <a href={exploreHref(panel)}>Open in collate-core ↗</a>
+        <a href={exploreHref(panel)}>Open in Studio ↗</a>
         {state?.updatedAt ? <span>Updated {new Date(state.updatedAt).toLocaleTimeString()}</span> : null}
       </div>
       <details>
