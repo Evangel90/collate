@@ -6,6 +6,7 @@ import { isAddress } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"
 import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES } from "../lib/data"
+import { href } from "../lib/router"
 import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
 import { resultsPanel } from "../model/panels"
 import { accreditationEntity, electionEntity, unitEntity, type UnitInput } from "../model/schema"
@@ -89,6 +90,15 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
   const closesAt = Number(electionRow.attrs.closes_at ?? 0)
   return (
     <>
+      <section className="card">
+        <div className="card-head">
+          <CardTitle icon="chart">“{election}” is on Arkiv</CardTitle>
+          <a className="btn btn-small" href={href("/results", { election, coordinator: wallet.address })}>
+            View results →
+          </a>
+        </div>
+        <p className="muted">Share this link: anyone who opens it counts only results from the observers you accredit, recomputed in their own browser.</p>
+      </section>
       <Accreditations wallet={wallet} election={election} closesAt={closesAt} rows={accreditations} block={block} onChange={load} />
       <MissingUnits wallet={wallet} election={election} units={units} />
     </>
@@ -98,6 +108,7 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
 function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; election: string; onCreated: () => void }) {
   const [name, setName] = useState("My election (synthetic)")
   const [closes, setCloses] = useState(() => new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10))
+  const [quorum, setQuorum] = useState(1)
   const [csv, setCsv] = useState("unit_code,ward,lga,state,registered,name\nXX-01-01,Ward One,Area North,Lagos,800,Unit 1 (Town Hall)\nXX-01-02,Ward One,Area North,Lagos,650,Unit 2 (School)")
   const [status, setStatus] = useState<Status>()
 
@@ -111,7 +122,7 @@ function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; elect
       // One batch: the election and all its units land together, or none of them do.
       const res = await wallet.client.executeBatch({
         creates: [
-          electionEntity({ election, name, description: "Created in the Collate coordinator console.", parties: DEFAULT_PARTIES, opensAt: now, closesAt: Math.floor(new Date(closes).getTime() / 1000) }),
+          electionEntity({ election, name, description: "Created in the Collate coordinator console.", parties: DEFAULT_PARTIES, opensAt: now, closesAt: Math.floor(new Date(closes).getTime() / 1000), quorum }),
           ...parsed.units.map(unitEntity),
         ],
       })
@@ -136,6 +147,11 @@ function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; elect
             <span>Counting closes</span>
             <input type="date" value={closes} onChange={(e) => setCloses(e.target.value)} />
             <small>Accreditations lapse 7 days after this unless extended.</small>
+          </label>
+          <label className="field">
+            <span>Agreeing observers per unit</span>
+            <input type="number" min={1} max={9} step={1} value={quorum} onChange={(e) => setQuorum(Math.max(1, Math.floor(Number(e.target.value)) || 1))} />
+            <small>A recommendation stored in the election. Viewers start from it and may change it.</small>
           </label>
         </div>
         <label className="field">
@@ -256,7 +272,7 @@ function MissingUnits({ wallet, election, units }: { wallet: Wallet; election: s
         <span className="pill">{state?.status === "ready" ? `${missing.length} of ${units.length}` : "…"}</span>
       </div>
       <p className="small">{missing.map((u) => String(u.attrs.unit_code)).join(", ") || "Every unit has a result."}</p>
-      {state?.disputes.length ? <p className="notice notice-warn">{state.disputes.length} of your units are disputed between your own observers.</p> : null}
+      {state?.disputes.length ? <p className="notice notice-warn">{state.disputes.length} of your units are contested: your own observers disagree and no majority agrees.</p> : null}
     </section>
   )
 }

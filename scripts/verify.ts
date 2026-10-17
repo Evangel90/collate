@@ -4,18 +4,21 @@
  *
  *   npm run verify                         # Observer Group A
  *   npm run verify -- --coordinator 0x…    # any coordinator wallet
+ *   npm run verify -- --quorum 2           # require 2 agreeing observers per unit (default 1)
  */
-import { computePanel, createCollate, renderWhere } from "@collate/core"
+import { computePanel, createCollate, renderWhere, type Consensus, type Row } from "@collate/core"
 import deployment from "../apps/web/src/deployment.json" with { type: "json" }
 import { resultsPanel } from "../apps/web/src/model/panels"
 
 const arg = process.argv.indexOf("--coordinator")
 const coordinator = (arg > 0 ? process.argv[arg + 1] : deployment.coordinators[0]!.address)!.toLowerCase()
-const panel = resultsPanel(deployment.election, coordinator, "state")
+const q = process.argv.indexOf("--quorum")
+const quorum = q > 0 ? Number(process.argv[q + 1]) : 1
+const panel = resultsPanel(deployment.election, coordinator, "state", quorum)
 const collate = createCollate()
 
 const block = await collate.clients.http.getBlockNumber()
-console.log(`Tiramisu block ${block}, coordinator ${coordinator}\n`)
+console.log(`Tiramisu block ${block}, coordinator ${coordinator}, quorum ${quorum}\n`)
 
 console.log("Q3, trusted observers:")
 console.log(`  ${renderWhere(panel.trust!.listQuery)} AND $creator = ${coordinator}`)
@@ -30,11 +33,16 @@ const all = await collate.fetchAll({ where: panel.query, atBlock: block })
 console.log(`  ${rows.length} trusted entities; ${all.rows.length - rows.length} from other wallets ignored`)
 
 const out = computePanel(panel, rows)
+const figures = (r: Row) => `${r.creator.slice(0, 8)} a=${r.attrs.votes_a} b=${r.attrs.votes_b} c=${r.attrs.votes_c}`
+const by = (status: Consensus["status"]) => out.consensus.filter((c) => c.status === status)
 console.log(`\nCorrections applied: ${out.superseded.length}`)
-for (const d of out.disputes) {
-  console.log(`Disputed ${d.key}: ${d.entries.map((r) => `${r.creator.slice(0, 8)} a=${r.attrs.votes_a} b=${r.attrs.votes_b} c=${r.attrs.votes_c}`).join("  vs  ")}`)
+console.log(`Units: ${by("certified").length} certified, ${by("contested").length} contested, ${by("pending").length} pending`)
+for (const c of by("certified").filter((c) => c.sources > 1)) {
+  const outliers = c.outliers.length ? `; outlier ${c.outliers.map(figures).join(", ")}` : ""
+  console.log(`Certified ${c.agreeing.length}/${c.sources} ${c.key}: ${figures(c.agreeing[c.agreeing.length - 1]!)}${outliers}`)
 }
-console.log("\nTotals by state (disputed units excluded):")
+for (const c of by("contested")) console.log(`Contested ${c.key}: ${c.entries.map(figures).join("  vs  ")}`)
+console.log("\nTotals by state (certified units only):")
 console.table(
   Object.fromEntries(
     [...out.groups, out.total].map((g) => [g.group, { units: g.count, votes_a: g.sums.votes_a, votes_b: g.sums.votes_b, votes_c: g.sums.votes_c, rejected: g.sums.rejected }]),

@@ -72,10 +72,12 @@ export type Panel = {
   supersedeField?: string
   groupBy?: string
   sum?: string[]
-  /** Groups where trusted sources disagree on this key are flagged instead of counted. */
+  /** Rows sharing this attribute are one group, counted only when its sources reach consensus. */
   disputeKey?: string
-  /** Fields compared when looking for disagreement. Defaults to `sum`. */
+  /** Fields compared when looking for agreement. Defaults to `sum`. */
   compareFields?: string[]
+  /** Minimum number of sources that must agree before a group counts (default 1). */
+  quorum?: number
   view: "table" | "bar"
   live?: boolean
   /** Also fetch matching entities from untrusted creators, to show what was ignored. */
@@ -90,7 +92,26 @@ export type SupersedeLink = { original: Row; by: Row }
 
 export type Dispute = {
   key: string
-  /** The latest entry from each disagreeing source. */
+  /** The latest entry from each source of a contested group. */
+  entries: Row[]
+}
+
+/**
+ * The verdict on one group of rows sharing a `disputeKey`. `certified`: the largest set of agreeing
+ * sources reaches `quorum` and is a strict majority of those who reported. `pending`: not certified
+ * and fewer than `quorum` sources so far. `contested`: neither.
+ */
+export type Consensus = {
+  key: string
+  status: "certified" | "contested" | "pending"
+  quorum: number
+  /** Number of sources that reported this group. */
+  sources: number
+  /** The agreeing majority, oldest first; empty unless certified. */
+  agreeing: Row[]
+  /** Certified groups only: sources that reported something else. */
+  outliers: Row[]
+  /** The latest entry from each source, oldest first. */
   entries: Row[]
 }
 
@@ -117,8 +138,11 @@ export type PanelState = {
   /** Trusted entities still standing after supersession. */
   current: Row[]
   superseded: SupersedeLink[]
-  /** One row per dispute key that is not in dispute; the input to aggregation. */
+  /** Unkeyed rows plus one row per certified group; the input to aggregation. */
   resolved: Row[]
+  /** Every keyed group with its status, sorted by key. */
+  consensus: Consensus[]
+  /** The contested groups only. Pending and contested groups never reach aggregation. */
   disputes: Dispute[]
   groups: AggRow[]
   total: AggRow

@@ -10,7 +10,7 @@ export { and, createdByAny, eq, gt, gte, lt, lte, or, renderWhere, startsWith, t
 export { PAGE_SIZE, headBlock, fetchAll, fetchMatching, fetchMatchingMany, type FetchOptions, type FetchResult } from "./query"
 export { buildTrust, partitionByTrust, resolveTrust } from "./trust"
 export { aggregate, type AggregateOptions } from "./aggregate"
-export { findDisputes } from "./disputes"
+export { findConsensus, findDisputes } from "./disputes"
 export { later, supersede } from "./supersede"
 export { watch, type LiveHandlers } from "./live"
 export { decodePanel, encodePanel, shareUrl } from "./share"
@@ -24,7 +24,7 @@ export { describeError, type ReadError } from "./errors"
  * @example
  * const collate = createCollate()
  * const panel = collate.panel({ title: "Votes by state", query: [eq("type", "unit_result")], groupBy: "state", sum: ["votes_a"], view: "bar", live: true })
- * panel.subscribe((state) => render(state.groups, state.disputes))
+ * panel.subscribe((state) => render(state.groups, state.consensus))
  */
 export function createCollate(options: CollateOptions = {}) {
   const clients = createClients(options)

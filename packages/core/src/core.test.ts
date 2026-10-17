@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Address, Hex } from "viem"
 import { aggregate } from "./aggregate"
-import { findDisputes } from "./disputes"
+import { findConsensus, findDisputes } from "./disputes"
 import { computePanel } from "./panel"
 import { decodePanel, encodePanel } from "./share"
 import { supersede } from "./supersede"
@@ -110,27 +110,101 @@ describe("supersede", () => {
   })
 })
 
-describe("disputes", () => {
-  it("flags disagreeing sources and counts agreeing ones once", () => {
+describe("consensus", () => {
+  const fields = ["votes_a", "votes_b"]
+  const D = "0x00000000000000000000000000000000000000dd" as Address
+
+  it("certifies a single report at the default quorum of 1", () => {
+    const only = result(A, "LA-01", 10, 20)
+    const { resolved, consensus, disputes } = findConsensus([only], "unit_code", fields)
+    expect(resolved).toEqual([only])
+    expect(disputes).toEqual([])
+    expect(consensus).toEqual([{ key: "LA-01", status: "certified", quorum: 1, sources: 1, agreeing: [only], outliers: [], entries: [only] }])
+  })
+
+  it("contests a one-against-one split and counts neither", () => {
+    const a = result(A, "LA-01", 10, 20)
+    const b = result(B, "LA-01", 11, 20)
+    const { resolved, consensus, disputes } = findConsensus([a, b], "unit_code", fields)
+    expect(resolved).toEqual([])
+    expect(consensus[0]).toMatchObject({ status: "contested", sources: 2, agreeing: [], outliers: [], entries: [a, b] })
+    expect(disputes).toEqual([{ key: "LA-01", entries: [a, b] }])
+  })
+
+  it("certifies a two-against-one majority and lists the outlier", () => {
+    const a = result(A, "LA-01", 10, 20, {}, 100n)
+    const bad = result(B, "LA-01", 99, 20, {}, 150n)
+    const c = result(C, "LA-01", 10, 20, {}, 200n)
+    const { resolved, consensus, disputes } = findConsensus([a, bad, c], "unit_code", fields)
+    expect(resolved).toEqual([c]) // the latest agreeing row counts, once
+    expect(disputes).toEqual([])
+    expect(consensus[0]).toMatchObject({ status: "certified", sources: 3, agreeing: [a, c], outliers: [bad], entries: [a, bad, c] })
+  })
+
+  it("needs a strict majority, not just the largest bucket", () => {
+    // 2 agree, 2 others each say something different: 2 of 4 is not a majority.
+    const rows = [result(A, "LA-01", 1, 1), result(B, "LA-01", 1, 1), result(C, "LA-01", 2, 2), result(D, "LA-01", 3, 3)]
+    const { resolved, consensus } = findConsensus(rows, "unit_code", fields)
+    expect(consensus[0]!.status).toBe("contested")
+    expect(resolved).toEqual([])
+  })
+
+  it("holds a group as pending until quorum sources report", () => {
+    const a = result(A, "LA-01", 10, 20)
+    const pending = findConsensus([a], "unit_code", fields, 2)
+    expect(pending.resolved).toEqual([])
+    expect(pending.disputes).toEqual([])
+    expect(pending.consensus[0]).toMatchObject({ status: "pending", quorum: 2, sources: 1, agreeing: [], entries: [a] })
+
+    const b = result(B, "LA-01", 10, 20)
+    const certified = findConsensus([a, b], "unit_code", fields, 2)
+    expect(certified.consensus[0]).toMatchObject({ status: "certified", quorum: 2, sources: 2 })
+    expect(certified.resolved).toHaveLength(1)
+  })
+
+  it("contests, not pends, once quorum sources report without agreement", () => {
+    const rows = [result(A, "LA-01", 1, 1), result(B, "LA-01", 2, 2)]
+    expect(findConsensus(rows, "unit_code", fields, 2).consensus[0]!.status).toBe("contested")
+    // Three sources, two agree, quorum 3: enough have reported, too few agree.
+    const three = [...rows, result(C, "LA-01", 1, 1)]
+    expect(findConsensus(three, "unit_code", fields, 3).consensus[0]!.status).toBe("contested")
+  })
+
+  it("uses only the latest entry per source", () => {
+    const old = result(A, "LA-01", 1, 1, {}, 100n)
+    const fresh = result(A, "LA-01", 2, 2, {}, 200n)
+    const other = result(B, "LA-01", 2, 2)
+    const { resolved, consensus } = findConsensus([old, fresh, other], "unit_code", fields, 2)
+    expect(consensus[0]).toMatchObject({ status: "certified", sources: 2, entries: [other, fresh] })
+    expect(resolved).toEqual([fresh])
+  })
+
+  it("keeps unkeyed rows and sorts groups by key", () => {
+    const loose = row(A, { type: "unit_result", votes_a: 1 })
+    const rows = [result(A, "LA-02", 1, 1), loose, result(A, "LA-01", 1, 1)]
+    const { resolved, consensus } = findConsensus(rows, "unit_code", fields)
+    expect(consensus.map((c) => c.key)).toEqual(["LA-01", "LA-02"])
+    expect(resolved).toContain(loose)
+    expect(resolved).toHaveLength(3)
+  })
+
+  it("treats a nonsense quorum as 1", () => {
+    const { consensus } = findConsensus([result(A, "LA-01", 1, 1)], "unit_code", fields, Number.NaN)
+    expect(consensus[0]).toMatchObject({ status: "certified", quorum: 1 })
+  })
+
+  it("keeps findDisputes as the quorum-1 view", () => {
     const rows = [
       result(A, "LA-01", 10, 20),
       result(B, "LA-01", 10, 20), // agrees
       result(A, "LA-02", 5, 5),
-      result(B, "LA-02", 6, 5), // disagrees
+      result(B, "LA-02", 6, 5), // one against one
       result(A, "LA-03", 1, 1),
     ]
-    const { resolved, disputes } = findDisputes(rows, "unit_code", ["votes_a", "votes_b"])
+    const { resolved, disputes } = findDisputes(rows, "unit_code", fields)
     expect(resolved.map((r) => r.attrs.unit_code).sort()).toEqual(["LA-01", "LA-03"])
-    expect(disputes).toHaveLength(1)
-    expect(disputes[0]!.key).toBe("LA-02")
+    expect(disputes.map((d) => d.key)).toEqual(["LA-02"])
     expect(disputes[0]!.entries.map((r) => r.creator)).toEqual([A, B])
-  })
-
-  it("uses only the latest entry per source", () => {
-    const rows = [result(A, "LA-01", 1, 1, {}, 100n), result(A, "LA-01", 2, 2, {}, 200n), result(B, "LA-01", 2, 2)]
-    const { resolved, disputes } = findDisputes(rows, "unit_code", ["votes_a", "votes_b"])
-    expect(disputes).toEqual([])
-    expect(resolved).toHaveLength(1)
   })
 })
 
@@ -154,16 +228,17 @@ describe("aggregate", () => {
 })
 
 describe("panel pipeline", () => {
-  it("supersedes, then flags disputes, then aggregates what is left", () => {
-    const panel: Panel = {
-      title: "t",
-      query: [eq("type", "unit_result")],
-      supersedeField: "corrects",
-      disputeKey: "unit_code",
-      groupBy: "state",
-      sum: ["votes_a", "votes_b"],
-      view: "table",
-    }
+  const panel: Panel = {
+    title: "t",
+    query: [eq("type", "unit_result")],
+    supersedeField: "corrects",
+    disputeKey: "unit_code",
+    groupBy: "state",
+    sum: ["votes_a", "votes_b"],
+    view: "table",
+  }
+
+  it("supersedes, then decides consensus, then aggregates what is certified", () => {
     const wrong = result(A, "LA-01", 99, 0)
     const fixed = result(A, "LA-01", 10, 0, { corrects: wrong.key }, 200n)
     const agree = result(B, "LA-01", 10, 0)
@@ -171,8 +246,22 @@ describe("panel pipeline", () => {
     const d2 = result(B, "LA-02", 2, 2)
     const out = computePanel(panel, [wrong, fixed, agree, d1, d2])
     expect(out.superseded).toHaveLength(1)
+    // The correction, not the mistyped original, is A's entry, so A and B agree on LA-01.
+    expect(out.consensus.map((c) => [c.key, c.status])).toEqual([["LA-01", "certified"], ["LA-02", "contested"]])
+    expect(out.consensus[0]!.entries).toEqual([agree, fixed])
     expect(out.disputes.map((d) => d.key)).toEqual(["LA-02"])
     expect(out.total.sums.votes_a).toBe(10)
+  })
+
+  it("counts only certified groups at the panel's quorum", () => {
+    const a1 = result(A, "LA-01", 10, 0)
+    const b1 = result(B, "LA-01", 10, 0)
+    const lone = result(A, "LA-02", 7, 0)
+    const out = computePanel({ ...panel, quorum: 2 }, [a1, b1, lone])
+    expect(out.consensus.map((c) => [c.key, c.status])).toEqual([["LA-01", "certified"], ["LA-02", "pending"]])
+    expect(out.disputes).toEqual([])
+    expect(out.total.sums.votes_a).toBe(10)
+    expect(out.total.count).toBe(1)
   })
 })
 
@@ -183,11 +272,18 @@ describe("share", () => {
       query: [eq("type", "unit_result"), createdByAny([A])],
       groupBy: "state",
       sum: ["votes_a"],
+      disputeKey: "unit_code",
+      quorum: 2,
       view: "bar",
     }
     const encoded = encodePanel(panel)
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(decodePanel(encoded)).toEqual(panel)
+  })
+
+  it("drops a quorum that is not a whole number of at least 1", () => {
+    const decoded = decodePanel(encodePanel({ title: "x", query: [eq("type", "a")], view: "table", quorum: 0 }))
+    expect(decoded.quorum).toBeUndefined()
   })
 
   it("rejects a panel without a query", () => {

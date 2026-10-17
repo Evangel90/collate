@@ -20,6 +20,11 @@ export type ElectionInput = {
   /** Unix seconds. */
   opensAt: number
   closesAt: number
+  /**
+   * Optional: how many agreeing observers the coordinator recommends before a unit counts. Viewers
+   * start from it and may change it; absent means 1.
+   */
+  quorum?: number
 }
 
 export type UnitInput = {
@@ -68,7 +73,7 @@ export const EXPIRY = {
 
 export function electionEntity(e: ElectionInput): CreateEntityParameters {
   return {
-    ...json({ name: e.name, description: e.description, parties: e.parties }),
+    ...json({ name: e.name, description: e.description, parties: e.parties, ...(e.quorum ? { quorum: e.quorum } : {}) }),
     attributes: { type: "election", election: e.election, opens_at: u64(e.opensAt), closes_at: u64(e.closesAt) },
     expires: EXPIRY.election(),
     flags: { readonly: true },

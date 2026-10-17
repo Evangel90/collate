@@ -204,8 +204,30 @@ async function correction() {
   ])
 }
 
+/**
+ * Second counts added after the first seed, so they cannot ride in an observer's first batch (that
+ * step skips any observer who has posted). Each is checked by unit before it is written.
+ */
+async function secondCounts() {
+  console.log("\n5. Second counts")
+  for (const { observer: o, unit: u } of EXTRAS.agreements) {
+    const account = w.observers[o]!
+    const unit = UNITS[u]!
+    if ((await count([resultTypes, eq("election", ELECTION), eq("unit_code", unit.unitCode)], account.address)) > 0) {
+      console.log(`  ${alias(o)}: ${unit.unitCode} already on Arkiv, skipping`)
+      continue
+    }
+    if (DRY) {
+      console.log(`  ${alias(o)}: would post a second count of ${unit.unitCode}`)
+      continue
+    }
+    const figures = trueFigures(unit, u)
+    await batch(account, alias(o), `second count of ${unit.unitCode}`, [resultEntity(result(unit, figures, now - 1800 + u * 7, "Second count at this unit"))])
+  }
+}
+
 async function rogue() {
-  console.log("\n5. Unaccredited write")
+  console.log("\n6. Unaccredited write")
   const unit = UNITS[EXTRAS.rogue.unit]!
   if ((await count([resultTypes, eq("election", ELECTION)], w.rogue.address)) > 0) {
     return console.log("  unaccredited wallet: result already on Arkiv, skipping")
@@ -222,5 +244,6 @@ await coordinator(w.coordinatorA, "Coordinator A", ACCREDITED_BY_A)
 await coordinator(w.coordinatorB, "Coordinator B", ACCREDITED_BY_B)
 await observers()
 await correction()
+await secondCounts()
 await rogue()
 console.log("\nDone. Public addresses are in apps/web/src/deployment.json; transactions in arkiv/seed-transactions.md.")

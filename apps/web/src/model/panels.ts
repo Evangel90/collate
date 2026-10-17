@@ -12,8 +12,11 @@ export function trustFor(election: string, coordinator: string): TrustConfig {
 
 const resultTypes = or(eq("type", "unit_result"), eq("type", "correction"))
 
-/** Q4 plus Q8: results and corrections, trust-filtered by the chosen coordinator. */
-export function resultsPanel(election: string, coordinator: string, groupBy: "state" | "lga" | "ward"): Panel {
+/**
+ * Q4 plus Q8: results and corrections, trust-filtered by the chosen coordinator. A unit counts
+ * only when at least `quorum` trusted observers agree and they are a majority of those who reported.
+ */
+export function resultsPanel(election: string, coordinator: string, groupBy: "state" | "lga" | "ward", quorum?: number): Panel {
   return {
     title: `Votes by ${groupBy.toUpperCase() === "LGA" ? "LGA" : groupBy}`,
     query: [resultTypes, eq("election", election)],
@@ -23,6 +26,7 @@ export function resultsPanel(election: string, coordinator: string, groupBy: "st
     groupBy,
     sum: [...PARTY_FIELDS, "rejected", "accredited"],
     compareFields: [...PARTY_FIELDS, "rejected", "accredited"],
+    quorum,
     view: "bar",
     live: true,
     includeIgnored: true,
