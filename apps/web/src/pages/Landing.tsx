@@ -393,7 +393,7 @@ const panel = collate.panel({
   },
   supersedeField: "corrects",
   disputeKey: "unit_code",
-  quorum: 2,                        // agreeing observers needed per unit
+  quorum: 2,                              // agreeing observers needed per unit
   groupBy: "state",
   sum: ["votes_a", "votes_b", "votes_c"],
   view: "bar",
