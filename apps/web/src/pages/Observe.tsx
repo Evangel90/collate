@@ -261,7 +261,7 @@ function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; c
           {status.text}{" "}
           {status.link && (
             <>
-              <a href={status.link} target="_blank" rel="noreferrer">View transaction ↗</a> · <a href={href("/")}>See it on the results page</a>
+              <a href={status.link} target="_blank" rel="noreferrer">View transaction ↗</a> · <a href={href("/results")}>See it on the results page</a>
             </>
           )}
         </p>
