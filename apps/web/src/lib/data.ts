@@ -14,6 +14,8 @@ export type ElectionInfo = {
   row: Row | undefined
   name: string
   parties: Party[]
+  /** Agreeing observers the coordinator recommends per unit, from the election payload, if set. */
+  quorum?: number
   units: Row[]
   loading: boolean
   error?: string
@@ -36,11 +38,12 @@ export function useElection(election: string, coordinator: string): ElectionInfo
         if (cancelled) return
         const row = rows.find((r) => r.attrs.type === "election")
         const units = rows.filter((r) => r.attrs.type === "unit")
-        const payload = (row?.payload ?? {}) as { name?: string; parties?: Party[] }
+        const payload = (row?.payload ?? {}) as { name?: string; parties?: Party[]; quorum?: unknown }
         setInfo({
           row,
           name: payload.name ?? election,
           parties: Array.isArray(payload.parties) && payload.parties.length ? payload.parties : DEFAULT_PARTIES,
+          quorum: Number.isInteger(payload.quorum) && (payload.quorum as number) >= 1 ? (payload.quorum as number) : undefined,
           units,
           loading: false,
         })

@@ -1,5 +1,5 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
-import { renderWhere, type AggRow, type PanelState, type Row } from "@collate/core"
+import { computePanel, renderWhere, type AggRow, type Consensus, type PanelState, type Row } from "@collate/core"
 import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useState } from "react"
 import { CardTitle, Icon, Skeleton } from "../components/ui"
@@ -24,8 +24,15 @@ export function Results() {
   const [proof, setProof] = useState<Proof | undefined>()
 
   const info = useElection(election, coordinator.address)
-  const panel = useMemo(() => resultsPanel(election, coordinator.address, groupBy), [election, coordinator.address, groupBy])
-  const { state } = usePanel(collate, panel)
+  // The viewer's bar for consensus; until they pick one, the coordinator's recommendation, else 1.
+  const [quorumChoice, setQuorumChoice] = useState<number | undefined>()
+  const quorum = quorumChoice ?? info.quorum ?? 1
+  const fetched = useMemo(() => resultsPanel(election, coordinator.address, groupBy), [election, coordinator.address, groupBy])
+  const { state: raw } = usePanel(collate, fetched)
+  // Consensus is recomputed in the browser from the rows already read, so changing the quorum
+  // costs no Arkiv queries. `panel` is what the page shows and links to.
+  const panel = useMemo(() => ({ ...fetched, quorum }), [fetched, quorum])
+  const state = useMemo(() => raw && { ...raw, ...computePanel(panel, raw.rows) }, [raw, panel])
   const parties = info.parties
 
   const chooseCoordinator = (id: string) => {
@@ -97,6 +104,7 @@ export function Results() {
             </span>
           ) : null}
         </div>
+        <QuorumControl quorum={quorum} recommended={info.quorum} onChange={setQuorumChoice} />
       </section>
 
       {state?.status === "error" && <p className="notice notice-error">Could not read from Arkiv: {state.error}</p>}
@@ -146,11 +154,11 @@ export function Results() {
             onSelect={(g) => proofFor(`${g.group}: who posted these numbers`, g.keys)}
           />
         )}
-        <PanelFoot state={state} panel={panel} note="Disputed units are left out of totals and listed below." />
+        <PanelFoot state={state} panel={panel} note="Only certified units count. Contested and pending units are left out and listed below." />
       </section>
 
       <div className="grid cols-2">
-        <Disputes state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
+        <ConsensusCard state={state} parties={parties} quorum={quorum} onProof={(title, rows) => setProof({ title, rows })} />
         <Latest version={state?.rows.length ?? 0} election={election} coordinator={coordinator.address} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
         <Missing units={info.units} state={state} />
         <Corrections state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
@@ -186,7 +194,10 @@ function LivePill({ state }: { state: PanelState | undefined }) {
 function Tiles({ state, parties, units, onProof }: { state: PanelState | undefined; parties: Party[]; units: number; onProof: (title: string, keys: string[]) => void }) {
   const total = state?.total
   const valid = parties.reduce((s, p) => s + (total?.sums[p.field] ?? 0), 0)
-  const reported = new Set([...(state?.resolved ?? []), ...(state?.disputes.flatMap((d) => d.entries) ?? [])].map((r) => String(r.attrs.unit_code)))
+  const groups = state?.consensus ?? []
+  const reported = groups.length
+  const count = (status: Consensus["status"]) => groups.filter((c) => c.status === status).length
+  const [certified, contested, pending] = [count("certified"), count("contested"), count("pending")]
   return (
     <section className="tiles" aria-label="Headline totals">
       {parties.map((p, i) => {
@@ -217,13 +228,16 @@ function Tiles({ state, parties, units, onProof }: { state: PanelState | undefin
       <div className="tile" style={{ ["--tile-color" as string]: "var(--ink-2)" }}>
         <span className="tile-label">Units reported</span>
         <span className="tile-value">
-          {reported.size}
+          {reported}
           <span className="muted"> / {units || "—"}</span>
         </span>
-        <span className="share" aria-hidden="true"><span style={{ width: `${units ? (reported.size / units) * 100 : 0}%` }} /></span>
+        <span className="share" aria-hidden="true"><span style={{ width: `${units ? (reported / units) * 100 : 0}%` }} /></span>
         <span className="tile-sub">
-          <span>{state?.disputes.length ?? 0} disputed</span>
-          <span>{units ? `${Math.round((reported.size / units) * 100)}%` : ""}</span>
+          <span>
+            {certified} certified{contested ? ` · ${contested} contested` : ""}
+            {pending ? ` · ${pending} pending` : ""}
+          </span>
+          <span>{units ? `${Math.round((reported / units) * 100)}%` : ""}</span>
         </span>
       </div>
     </section>
@@ -249,33 +263,90 @@ function PanelFoot({ state, panel, note }: { state: PanelState | undefined; pane
 
 type ProofHandler = (title: string, rows: Row[]) => void
 
-function Disputes({ state, parties, onProof }: { state: PanelState | undefined; parties: Party[]; onProof: ProofHandler }) {
-  const disputes = state?.disputes ?? []
-  const fields = [...parties.map((p) => p.field), "rejected", "accredited"]
+const who = (r: Row) => nameOf(r.creator) ?? r.creator.slice(0, 10)
+
+/**
+ * Viewers already choose whom to trust; this lets them also raise the bar for how many of those
+ * observers must agree before a unit counts.
+ */
+function QuorumControl({ quorum, recommended, onChange }: { quorum: number; recommended?: number; onChange: (q: number) => void }) {
+  const options = [...new Set([1, 2, 3, ...(recommended ? [recommended] : [])])].sort((a, b) => a - b)
   return (
-    <section className="card" aria-labelledby="disputes-h">
+    <div className="card-foot">
+      <span className="toolbar">
+        <span className="toolbar-label">Require at least</span>
+        <span className="seg" role="group" aria-label="Agreeing observers required per unit">
+          {options.map((q) => (
+            <button key={q} type="button" aria-pressed={q === quorum} onClick={() => onChange(q)}>
+              {q}
+            </button>
+          ))}
+        </span>
+        <span className="toolbar-label">agreeing observer{quorum === 1 ? "" : "s"} per unit</span>
+      </span>
+      <span>
+        They must also outnumber everyone else who reported the unit.
+        {recommended ? ` This coordinator recommends ${recommended}.` : ""}
+      </span>
+    </div>
+  )
+}
+
+/** "Certified 2/3": agreeing of those who reported. "Pending 1/2": reported of those required. */
+function StatusBadge({ c }: { c: Consensus }) {
+  if (c.status === "certified") {
+    return <span className="pill pill-good" title={`${c.agreeing.length} of ${c.sources} observers agree`}>Certified {c.agreeing.length}/{c.sources}</span>
+  }
+  if (c.status === "pending") {
+    return <span className="pill pill-warn" title={`${c.sources} of ${c.quorum} required observers have reported`}>Pending {c.sources}/{c.quorum}</span>
+  }
+  return <span className="pill pill-critical">Contested</span>
+}
+
+function ConsensusCard({ state, parties, quorum, onProof }: { state: PanelState | undefined; parties: Party[]; quorum: number; onProof: ProofHandler }) {
+  const groups = state?.consensus ?? []
+  const certified = groups.filter((c) => c.status === "certified")
+  const contested = groups.filter((c) => c.status === "contested")
+  const pending = groups.filter((c) => c.status === "pending")
+  // Units with a single observer are the bulk and say nothing about agreement; list the rest.
+  const confirmed = certified.filter((c) => c.sources > 1)
+  const fields = [...parties.map((p) => p.field), "rejected", "accredited"]
+  const ready = state?.status === "ready"
+  return (
+    <section className="card" aria-labelledby="consensus-h">
       <div className="card-head">
-        <CardTitle icon="alert" id="disputes-h" tone="critical">Disputed units</CardTitle>
-        {state?.status === "ready" && (
-          <span className={disputes.length ? "pill pill-critical" : "pill pill-good"}>{disputes.length ? `${disputes.length} flagged` : "None"}</span>
+        <CardTitle icon="alert" id="consensus-h" tone={contested.length ? "critical" : "good"}>Unit consensus</CardTitle>
+        {ready && (
+          <span className="row">
+            <span className="pill pill-good">{certified.length} certified</span>
+            <span className={contested.length ? "pill pill-critical" : "pill"}>{contested.length} contested</span>
+            {pending.length ? <span className="pill pill-warn">{pending.length} pending</span> : null}
+          </span>
         )}
       </div>
-      <p className="muted">Two trusted observers posted different figures for the same unit. Both stay visible; neither is counted until resolved.</p>
-      {state?.status !== "ready" && <Skeleton lines={2} />}
-      {disputes.map((d) => (
-        <div key={d.key} className="dispute">
+      <p className="muted">
+        A unit counts once {quorum === 1 ? "its trusted observers agree" : `${quorum} or more trusted observers agree`} and they outnumber
+        everyone else who reported it; anyone who posted different figures is listed as an outlier. Contested and pending units stay
+        visible but are not counted.
+      </p>
+      {!ready && <Skeleton lines={2} />}
+      {contested.map((c) => (
+        <div key={c.key} className="dispute">
           <div className="dispute-head">
-            <strong>{d.key}</strong>
-            <button type="button" className="link-btn" onClick={() => onProof(`${d.key}: disputed`, d.entries)}>
+            <span className="row">
+              <strong>{c.key}</strong>
+              <StatusBadge c={c} />
+            </span>
+            <button type="button" className="link-btn" onClick={() => onProof(`${c.key}: contested`, c.entries)}>
               Proof ↗
             </button>
           </div>
           <div className="versions">
-            {d.entries.map((r) => (
+            {c.entries.map((r) => (
               <div key={r.key} className="version">
-                <span className="muted">{nameOf(r.creator) ?? r.creator.slice(0, 10)}</span>
+                <span className="muted">{who(r)}</span>
                 {fields.map((f) => {
-                  const differs = new Set(d.entries.map((e) => e.attrs[f])).size > 1
+                  const differs = new Set(c.entries.map((e) => e.attrs[f])).size > 1
                   const label = parties.find((p) => p.field === f)?.short ?? f
                   return (
                     <span key={f}>
@@ -288,6 +359,52 @@ function Disputes({ state, parties, onProof }: { state: PanelState | undefined; 
           </div>
         </div>
       ))}
+      {confirmed.length > 0 && (
+        <div className="stack">
+          <h3 className="subhead">Certified by more than one observer</h3>
+          <ul className="feed">
+            {confirmed.map((c) => {
+              const counted = c.agreeing[c.agreeing.length - 1]!
+              return (
+                <li key={c.key}>
+                  <span className="row">
+                    <button type="button" className="link-btn" onClick={() => onProof(`${c.key}: certified ${c.agreeing.length}/${c.sources}`, c.entries)}>
+                      {c.key}
+                    </button>
+                    <StatusBadge c={c} />
+                  </span>
+                  <span className="meta">{c.agreeing.map(who).join(", ")}</span>
+                  {c.outliers.map((r) => (
+                    <span key={r.key} className="meta" style={{ flexBasis: "100%" }}>
+                      Outlier:{" "}
+                      <button type="button" className="link-btn" onClick={() => onProof(`${c.key}: ${who(r)} against the certified count`, [counted, r])}>
+                        {who(r)}
+                      </button>{" "}
+                      posted {figures(r, parties)}
+                    </span>
+                  ))}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+      {pending.length > 0 && (
+        <div className="stack">
+          <h3 className="subhead">Pending: fewer than {quorum} observers so far</h3>
+          <div className="unit-chips">
+            {pending.slice(0, 30).map((c) => (
+              <button key={c.key} type="button" title={`Pending ${c.sources}/${c.quorum}`} onClick={() => onProof(`${c.key}: pending ${c.sources}/${c.quorum}`, c.entries)}>
+                {c.key} · {c.sources}/{c.quorum}
+              </button>
+            ))}
+            {pending.length > 30 ? <span>+{pending.length - 30} more</span> : null}
+          </div>
+        </div>
+      )}
+      {ready && groups.length > 0 && contested.length + confirmed.length + pending.length === 0 && (
+        <p className="muted">Every reported unit has a single observer so far, so there is nothing to compare.</p>
+      )}
     </section>
   )
 }
@@ -537,7 +654,7 @@ function OffArkiv() {
         <ul className="list-plain">
           <li>
             <b>Off Arkiv:</b> names, phones or IDs of voters and observers (none exist here), result-sheet photos (only a SHA-256 hash
-            is stored), computed totals and disputes (every viewer recomputes them), keys, and your preferences (kept in this browser).
+            is stored), computed totals and consensus (every viewer recomputes them), keys, and your preferences (kept in this browser).
           </li>
         </ul>
       </div>
