@@ -1,0 +1,172 @@
+/* Collate Studio. Uses the design tokens from styles.css; every rule is scoped under .studio. */
+
+.studio-lede { font-size: 14px !important; color: var(--muted) !important; }
+.studio .hero p.studio-lede a { font-weight: 500; }
+
+/* ---------- Presets ---------- */
+.studio-preset-group { display: grid; gap: 8px; }
+.studio-subhead { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.studio-presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 10px; }
+.studio-preset {
+  display: grid; gap: 4px; align-content: start; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.studio-preset b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.studio-preset span { font-size: 13px; color: var(--muted); }
+.studio-preset:hover { border-color: var(--border-strong); }
+.studio-preset[aria-pressed="true"] { border-color: var(--accent-2); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-2) inset; }
+
+.studio-other { display: flex; gap: 10px; align-items: flex-start; }
+.studio-other .icon { margin-top: 2px; color: var(--accent); }
+
+/* ---------- Layout ---------- */
+.studio-layout { display: grid; gap: 16px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  .studio-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); }
+}
+
+/* ---------- Builder ---------- */
+.studio-form { display: grid; gap: 16px; container-type: inline-size; }
+.studio-section { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px 14px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.studio-section legend { padding: 0 6px; margin-left: -6px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.studio-hint { font-size: 13px; color: var(--muted); }
+
+.studio-in {
+  font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--border-strong);
+  background: var(--surface-2); color: var(--ink); min-width: 0; width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.studio-in:focus { outline: none; border-color: var(--accent-2); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent); }
+.studio-in.mono, .studio .field input.mono { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+.studio-in.is-invalid { border-color: var(--critical); }
+.studio-problem { color: var(--critical); font-size: 12px; }
+.studio-icon-btn {
+  display: inline-grid; place-items: center; width: 32px; height: 36px; border-radius: 9px; border: 1px solid transparent;
+  background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.studio-icon-btn:hover { color: var(--critical); border-color: var(--border); background: var(--surface-2); }
+
+.studio-filters { display: grid; gap: 8px; }
+.studio-filter { display: grid; gap: 4px; }
+.studio-and { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.studio-filter-row {
+  display: grid; gap: 6px; align-items: center;
+  grid-template-columns: minmax(0, 1.15fr) 92px minmax(0, 1.15fr) 72px 32px;
+  grid-template-areas: "field op value type x";
+}
+.studio-filter-row > :nth-child(1) { grid-area: field; }
+.studio-filter-row > .studio-op { grid-area: op; }
+.studio-filter-row > :nth-child(3) { grid-area: value; }
+.studio-filter-row > .studio-type { grid-area: type; }
+.studio-filter-row > .studio-icon-btn { grid-area: x; }
+.studio-filter-row > datalist { display: none; }
+@container (max-width: 520px) {
+  .studio-filter-row {
+    grid-template-columns: 92px minmax(0, 1fr) 72px 32px;
+    grid-template-areas: "field field field x" "op value type type";
+  }
+}
+.studio-add { justify-self: start; font-size: 13px; }
+
+.studio-oneof { display: grid; gap: 6px; grid-template-columns: minmax(0, 140px) auto minmax(0, 1fr); align-items: start; }
+.studio-oneof > .studio-in { height: 38px; }
+.studio-oneof-label { font-size: 13px; color: var(--muted); padding-top: 9px; white-space: nowrap; }
+@container (max-width: 520px) {
+  .studio-oneof { grid-template-columns: minmax(0, 1fr) auto; }
+  .studio-oneof > .studio-chips { grid-column: 1 / -1; }
+}
+
+/* Chip input: chosen values as chips, a bare text box, and one-click suggestions. */
+.studio-chips { display: grid; gap: 6px; min-width: 0; }
+.studio-chip-box {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 4px 6px;
+  border: 1px solid var(--border-strong); border-radius: 9px; background: var(--surface-2); min-width: 0;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.studio-chip-box:focus-within { border-color: var(--accent-2); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 18%, transparent); }
+.studio .studio-chip-box input {
+  flex: 1 1 120px; min-width: 80px; border: none; background: transparent; padding: 4px 4px; box-shadow: none;
+  font: inherit; font-size: 13px; color: var(--ink); outline: none; border-radius: 0;
+}
+.studio .studio-chip-box.mono input, .studio-chip-box.mono .studio-chip-text { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+.studio-chip {
+  display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 2px 2px 2px 8px; border-radius: 7px;
+  background: var(--accent-soft); color: var(--ink); font-size: 12.5px; border: 1px solid var(--border);
+}
+.studio-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.studio-chip button {
+  border: none; background: transparent; color: var(--muted); width: 22px; height: 22px; border-radius: 5px;
+  cursor: pointer; font-size: 15px; line-height: 1; flex: none;
+}
+.studio-chip button:hover { color: var(--critical); background: var(--surface); }
+.studio-suggest { display: flex; flex-wrap: wrap; gap: 4px; }
+.studio-suggest button {
+  border: 1px dashed var(--border-strong); background: transparent; color: var(--ink-2); border-radius: 7px; padding: 2px 8px;
+  font: inherit; font-size: 12px; cursor: pointer; font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.studio-suggest button:hover { border-style: solid; border-color: var(--accent-2); color: var(--accent); }
+
+/* Collapsible sections. */
+.studio-details { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.studio-details > summary { font-size: 13px; font-weight: 600; color: var(--ink); }
+.studio-details[open] > summary { margin-bottom: 10px; }
+.studio-details-body { display: grid; gap: 12px; }
+.studio .field small { font-size: 12px; }
+
+/* On/off switch: a real checkbox, visually a switch. */
+.studio-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; position: relative; font-size: 14px; }
+.studio-toggle input { position: absolute; opacity: 0; width: 36px; height: 22px; margin: 0; cursor: pointer; }
+.studio-switch { flex: none; width: 36px; height: 22px; border-radius: 999px; background: var(--border-strong); position: relative; transition: background 0.15s; margin-top: 1px; }
+.studio-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-sm); transition: transform 0.15s; }
+.studio-toggle input:checked + .studio-switch { background: var(--accent-2); }
+.studio-toggle input:checked + .studio-switch::after { transform: translateX(14px); }
+.studio-toggle input:focus-visible + .studio-switch { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.studio-toggle-text { display: grid; gap: 2px; }
+.studio-toggle-text > span { font-weight: 500; color: var(--ink); }
+.studio-toggle-text small { color: var(--muted); font-size: 12.5px; }
+.studio-toggle.is-disabled { opacity: 0.55; cursor: not-allowed; }
+
+.studio-run { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding-top: 2px; }
+.studio-ref { font-size: 12px; white-space: pre; word-break: normal; }
+
+/* ---------- Output ---------- */
+.studio-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-stat {
+  display: grid; gap: 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border);
+  min-width: 84px; text-align: left; font: inherit; color: inherit;
+}
+.studio-stat.is-clickable { cursor: pointer; }
+.studio-stat.is-clickable:hover { border-color: var(--border-strong); }
+.studio-stat-value { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.studio-stat-label { font-size: 12px; color: var(--muted); }
+.studio-stat-critical { background: var(--critical-bg); border-color: transparent; }
+.studio-stat-critical .studio-stat-value, .studio-stat-critical .studio-stat-label { color: var(--critical); }
+.studio-stat-good .studio-stat-value { color: var(--good); }
+
+.studio-disputes { display: grid; gap: 8px; }
+.studio-disputes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.studio-dispute {
+  width: 100%; display: grid; gap: 4px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: linear-gradient(90deg, var(--critical-bg), transparent 60%);
+}
+.studio-dispute:hover { border-color: var(--border-strong); }
+.studio-dispute-key { font-size: 13px; font-weight: 600; color: var(--critical); word-break: break-all; }
+.studio-dispute-entries { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); }
+
+.studio-code-block { display: grid; gap: 6px; }
+.studio-code-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.studio-code-head .small { color: var(--ink-2); font-weight: 500; }
+.studio-share {
+  width: 100%; font-size: 12px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink-2); text-overflow: ellipsis;
+}
+.studio-share:focus { outline: none; border-color: var(--accent-2); }
+
+.studio-snippet { white-space: pre; word-break: normal; max-height: 520px; overflow: auto; font-size: 12.5px; line-height: 1.55; }
+
+@media (max-width: 640px) {
+  .studio-section, .studio-details { padding: 10px 12px; }
+  .studio-stat { min-width: 0; flex: 1 1 calc(33% - 8px); }
+}
