@@ -63,8 +63,8 @@
 .studio-filter-row > datalist { display: none; }
 @container (max-width: 520px) {
   .studio-filter-row {
-    grid-template-columns: 92px minmax(0, 1fr) 72px 32px;
-    grid-template-areas: "field field field x" "op value type type";
+    grid-template-columns: 84px minmax(0, 1fr) 72px 32px;
+    grid-template-areas: "field field type x" "op value value value";
   }
 }
 .studio-add { justify-self: start; font-size: 13px; }
@@ -113,6 +113,7 @@
 .studio-details[open] > summary { margin-bottom: 10px; }
 .studio-details-body { display: grid; gap: 12px; }
 .studio .field small { font-size: 12px; }
+.studio .field-row { align-items: start; }
 
 /* On/off switch: a real checkbox, visually a switch. */
 .studio-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; position: relative; font-size: 14px; }
@@ -165,6 +166,11 @@
 .studio-share:focus { outline: none; border-color: var(--accent-2); }
 
 .studio-snippet { white-space: pre; word-break: normal; max-height: 520px; overflow: auto; font-size: 12.5px; line-height: 1.55; }
+
+/* One column: show the result before the long form. */
+@media (max-width: 999px) {
+  .studio-output { order: -1; }
+}
 
 @media (max-width: 640px) {
   .studio-section, .studio-details { padding: 10px 12px; }

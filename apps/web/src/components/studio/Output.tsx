@@ -103,7 +103,14 @@ export function Output({ panel, state, handle, shareLink, onProof }: Props) {
       ) : state.status === "ready" ? (
         <>
           {panel.groupBy && panel.view === "bar" ? (
-            <BarChart title={panel.title} groups={groups} series={series} onSelect={(g) => onProof(`${g.group}: the entities behind this bar`, rowsByKey(g.keys))} />
+            <BarChart
+              title={panel.title}
+              groups={groups}
+              series={series}
+              // Other projects' group names run long (e.g. drug names): size the label column to fit.
+              labelWidth={Math.min(260, Math.max(116, 16 + 8.2 * Math.max(0, ...groups.map((g) => g.group.length))))}
+              onSelect={(g) => onProof(`${g.group}: the entities behind this bar`, rowsByKey(g.keys))}
+            />
           ) : panel.groupBy ? (
             <GroupTable
               groups={state.groups}
