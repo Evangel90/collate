@@ -6,6 +6,7 @@ import { isAddress } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"
 import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES } from "../lib/data"
+import { href } from "../lib/router"
 import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
 import { resultsPanel } from "../model/panels"
 import { accreditationEntity, electionEntity, unitEntity, type UnitInput } from "../model/schema"
@@ -89,6 +90,15 @@ function Console({ wallet, election }: { wallet: Wallet; election: string }) {
   const closesAt = Number(electionRow.attrs.closes_at ?? 0)
   return (
     <>
+      <section className="card">
+        <div className="card-head">
+          <CardTitle icon="chart">“{election}” is on Arkiv</CardTitle>
+          <a className="btn btn-small" href={href("/results", { election, coordinator: wallet.address })}>
+            View results →
+          </a>
+        </div>
+        <p className="muted">Share this link: anyone who opens it counts only results from the observers you accredit, recomputed in their own browser.</p>
+      </section>
       <Accreditations wallet={wallet} election={election} closesAt={closesAt} rows={accreditations} block={block} onChange={load} />
       <MissingUnits wallet={wallet} election={election} units={units} />
     </>

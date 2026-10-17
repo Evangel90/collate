@@ -2,9 +2,11 @@ import { ExpirationTime } from "@arkiv-network/sdk"
 import { computePanel, renderWhere, type AggRow, type Consensus, type PanelState, type Row } from "@collate/core"
 import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useState } from "react"
+import { isAddress } from "viem"
 import { CardTitle, Icon, Skeleton } from "../components/ui"
-import { collate, deployment, nameOf, prefs } from "../lib/collate"
+import { collate, deployment, nameOf, prefs, type Coordinator } from "../lib/collate"
 import { exploreHref, figures, timeAgo, useElection } from "../lib/data"
+import { href } from "../lib/router"
 import { errorMessage, useWallet } from "../lib/wallet"
 import type { Party } from "../model/schema"
 import { latestPanel, resultsPanel, suspiciousPanel } from "../model/panels"
@@ -15,10 +17,29 @@ type Proof = { title: string; rows: Row[] }
 const EXTEND_DAYS = 30
 const BLOCKS_PER_DAY = 43_200n // 2-second blocks
 
-export function Results() {
-  const election = deployment.election
-  const [coordinatorId, setCoordinatorId] = useState(() => prefs.get("coordinator") ?? deployment.coordinators[0]!.id)
-  const coordinator = deployment.coordinators.find((c) => c.id === coordinatorId) ?? deployment.coordinators[0]!
+/**
+ * Optional `election` and `coordinator` URL params let anyone watch their own election, e.g.
+ * `#/results?election=my-vote&coordinator=0x…`. Without them the page shows the demo, as before.
+ */
+function fromParams(params: URLSearchParams | undefined): { election: string; coordinators: Coordinator[]; urlId?: string } {
+  const election = params?.get("election")?.trim() || deployment.election
+  const wanted = params?.get("coordinator")?.trim().toLowerCase()
+  if (!wanted || !isAddress(wanted)) return { election, coordinators: deployment.coordinators }
+  const known = deployment.coordinators.find((c) => c.address.toLowerCase() === wanted)
+  if (known) return { election, coordinators: deployment.coordinators, urlId: known.id }
+  const custom: Coordinator = { id: "custom", name: "Custom", address: wanted, observers: [] }
+  return { election, coordinators: [...deployment.coordinators, custom], urlId: custom.id }
+}
+
+export function Results({ params }: { params?: URLSearchParams } = {}) {
+  const query = params?.toString() ?? ""
+  const { election, coordinators, urlId } = useMemo(() => fromParams(new URLSearchParams(query)), [query])
+  const [coordinatorId, setCoordinatorId] = useState(() => urlId ?? prefs.get("coordinator") ?? coordinators[0]!.id)
+  // A new link while the page is open selects its coordinator too.
+  useEffect(() => {
+    if (urlId) setCoordinatorId(urlId)
+  }, [urlId])
+  const coordinator = coordinators.find((c) => c.id === coordinatorId) ?? coordinators[0]!
   const [groupBy, setGroupBy] = useState<GroupBy>(() => (prefs.get("groupBy") as GroupBy) ?? "state")
   const [view, setView] = useState<"chart" | "table">("chart")
   const [proof, setProof] = useState<Proof | undefined>()
@@ -37,7 +58,7 @@ export function Results() {
 
   const chooseCoordinator = (id: string) => {
     setCoordinatorId(id)
-    prefs.set("coordinator", id)
+    if (id !== "custom") prefs.set("coordinator", id) // a linked coordinator is not a lasting preference
   }
   const chooseGroup = (g: GroupBy) => {
     setGroupBy(g)
@@ -84,7 +105,7 @@ export function Results() {
             <p>Trust comes from the coordinator wallet that created each accreditation ($creator), never from a field anyone can write.</p>
           </div>
           <div className="seg" role="group" aria-label="Coordinator">
-            {deployment.coordinators.map((c) => (
+            {coordinators.map((c) => (
               <button key={c.id} type="button" aria-pressed={c.id === coordinator.id} onClick={() => chooseCoordinator(c.id)}>
                 {c.name}
               </button>
@@ -109,6 +130,12 @@ export function Results() {
 
       {state?.status === "error" && <p className="notice notice-error">Could not read from Arkiv: {state.error}</p>}
       {info.error && <p className="notice notice-error">Could not load the election: {info.error}</p>}
+      {!info.loading && !info.error && !info.row && (
+        <p className="notice notice-warn">
+          No election “{election}” created by {coordinator.name} ({coordinator.address.slice(0, 10)}…) was found on Arkiv. Check the link, or
+          create it in the <a href={href("/coordinate")}>coordinator console</a>.
+        </p>
+      )}
 
       <Tiles state={state} parties={parties} units={info.units.length} onProof={proofFor} />
 
