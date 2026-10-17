@@ -8,3 +8,4 @@ dist/
 .vercel
 .netlify
 scripts/.seed-state.json
+.claude/worktrees/
