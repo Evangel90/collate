@@ -44,14 +44,14 @@ export async function resolveTrust(
   client: PublicArkivClient,
   config: TrustConfig,
   atBlock?: bigint,
-): Promise<{ trust: TrustSet; block: bigint }> {
-  const { rows, block } = await fetchAll(client, {
+): Promise<{ trust: TrustSet; block: bigint; cached?: boolean }> {
+  const { rows, block, cached } = await fetchAll(client, {
     where: config.listQuery,
     creators: config.rootCreators,
     atBlock,
     payload: true,
   })
-  return { trust: buildTrust(config, rows), block }
+  return { trust: buildTrust(config, rows), block, cached }
 }
 
 /** Splits rows into those whose creator is trusted and those that are not. */

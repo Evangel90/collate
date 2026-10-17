@@ -3,22 +3,30 @@ import { aggregate } from "./aggregate"
 import type { Clients } from "./client"
 import { findConsensus } from "./disputes"
 import { describeError } from "./errors"
-import { watch } from "./live"
-import { fetchAll, fetchMatchingMany, headBlock } from "./query"
+import { replay, watch } from "./live"
+import { fetchAll, fetchMatchingMany, headBlock, type FetchResult } from "./query"
 import { supersede } from "./supersede"
 import { partitionByTrust, resolveTrust } from "./trust"
-import type { Panel, PanelState, Row, TrustSet } from "./types"
+import type { Panel, PanelState, Row, TrustSet, Where } from "./types"
 
 export type PanelHandle = {
   readonly config: Panel
   getState: () => PanelState
   /** Calls `listener` now and on every change. Starts loading (and live updates) on first use. */
   subscribe: (listener: (state: PanelState) => void) => () => void
+  /** Reads again at the current head, bypassing the session cache. */
   refresh: () => Promise<void>
   destroy: () => void
 }
 
 const EMPTY_TOTAL = { group: "Total", count: 0, sums: {}, min: {}, max: {}, keys: [] }
+/** Batching delay for new entities from wallets the panel already scopes to. */
+const SCOPED_FLUSH = 250
+/**
+ * A live panel with no trust list and no `$creator` filter could match any new entity on a busy,
+ * shared chain, and Tiramisu charges per query: such panels re-read at most once a minute.
+ */
+const UNSCOPED_FLUSH = 60_000
 
 /** The pure part of a panel: trusted rows in, totals, consensus and supersessions out. */
 export function computePanel(
@@ -35,9 +43,27 @@ export function computePanel(
   return { current, superseded, resolved, consensus, disputes, groups, total }
 }
 
+/** The wallets a query is restricted to by a top-level `$creator` equality or OR of them. */
+export function creatorScope(query: Where[]): Set<string> | undefined {
+  for (const w of query) {
+    const parts = w.op === "or" ? w.any : [w]
+    const values = parts.map((p) => (p.op === "eq" && p.field === "$creator" ? p.value : undefined))
+    if (values.length && values.every((v) => v !== undefined)) {
+      return new Set(values.map((v) => String(typeof v === "object" ? v.value : v).toLowerCase()))
+    }
+  }
+  return undefined
+}
+
+const maxBlock = (a: bigint, b: bigint) => (a > b ? a : b)
+
 /**
  * A live, trust-filtered view of one Arkiv query. Reads go straight to Arkiv's public RPC; there is
  * no indexer or backend in between, so anyone serving the same config sees the same numbers.
+ *
+ * Reads are metered per query, so a panel spends as few as it can: the first load may be answered
+ * by the session cache (and then catches up through the event log, which is not metered), an idle
+ * panel makes none, and each burst of new entities from trusted wallets costs one batched re-read.
  */
 export function createPanel(clients: Clients, config: Panel): PanelHandle {
   let state: PanelState = {
@@ -55,16 +81,23 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     updatedAt: 0,
   }
   const listeners = new Set<(s: PanelState) => void>()
+  const roots = new Set((config.trust?.rootCreators ?? []).map((r) => r.toLowerCase()))
+  const scope = config.trust ? undefined : creatorScope(config.query)
   let started = false
   let destroyed = false
   let unwatch: (() => void) | undefined
   let inFlight: Promise<void> | undefined
   let again = false
+  let wantFresh = false
+  let wantMin: bigint | undefined
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
   let retryTimer: ReturnType<typeof setTimeout> | undefined
-  // New entities from trusted owners are re-read in one batch per flush.
-  const queued = new Set<Hex>()
+  // The block the trust list was read at: a root's write after it may change who is trusted.
+  let trustBlock = -1n
+  // New entities are re-read in one batch per flush, at the newest block among them.
+  const queued = new Map<Hex, { owner: string; block: bigint }>()
   let flushTimer: ReturnType<typeof setTimeout> | undefined
+  let lastFlush = 0
 
   const set = (patch: Partial<PanelState>) => {
     if (destroyed) return
@@ -77,28 +110,63 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
 
   const trusts = (trust: TrustSet | undefined, creator: string) => !trust || trust.members.has(creator)
 
-  async function load() {
-    const block = await headBlock(clients.http)
+  /** Reads the snapshot: from the session cache when `atBlock` is unset, else pinned at that block. */
+  async function load(atBlock?: bigint) {
     let trust: TrustSet | undefined
-    if (config.trust) trust = (await resolveTrust(clients.http, config.trust, block)).trust
+    let trustRead: { block: bigint; cached?: boolean } | undefined
+    if (config.trust) {
+      const t = await resolveTrust(clients.http, config.trust, atBlock)
+      trust = t.trust
+      trustRead = t
+    }
+    // A trust list read just now pins the rows to its block, so both are one snapshot.
+    const block = atBlock ?? (trustRead && !trustRead.cached ? trustRead.block : undefined)
+    const read = (creators?: string[]) => fetchAll(clients.http, { where: config.query, creators, atBlock: block, payload: config.payload })
 
+    let result: FetchResult
     let rows: Row[]
     let ignored: Row[] = []
     if (!trust) {
-      rows = (await fetchAll(clients.http, { where: config.query, atBlock: block, payload: config.payload })).rows
+      result = await read()
+      rows = result.rows
     } else if (config.includeIgnored) {
-      const all = (await fetchAll(clients.http, { where: config.query, atBlock: block, payload: config.payload })).rows
-      ;({ trusted: rows, ignored } = partitionByTrust(all, trust))
+      result = await read()
+      ;({ trusted: rows, ignored } = partitionByTrust(result.rows, trust))
     } else {
-      const creators = [...trust.members.keys()]
-      rows = (await fetchAll(clients.http, { where: config.query, creators, atBlock: block, payload: config.payload })).rows
+      result = await read([...trust.members.keys()])
+      rows = result.rows
     }
-    set({ block })
+    trustBlock = trustRead?.block ?? result.block
+    set({ block: result.block })
     recompute(rows, ignored, trust)
+
+    // A cached snapshot can be up to a TTL old: replay the event log since then.
+    const cachedAt = [trustRead?.cached ? trustRead.block : undefined, result.cached ? result.block : undefined].filter(
+      (b): b is bigint => b !== undefined,
+    )
+    if (config.live && cachedAt.length) void catchUp(cachedAt.reduce((a, b) => (a < b ? a : b)) + 1n)
   }
 
-  /** Coalesces overlapping refreshes: one runs, and one more follows if asked for meanwhile. */
-  function refresh(): Promise<void> {
+  async function catchUp(fromBlock: bigint) {
+    try {
+      const head = await headBlock(clients.http, true)
+      if (fromBlock > head || destroyed) return
+      await replay(clients.http, fromBlock, { onCreated, onDeleted, onExtended })
+    } catch {
+      // Without the log the snapshot may be stale, so read it again rather than guess.
+      if (!destroyed) void refresh(true)
+    }
+  }
+
+  /**
+   * Coalesces overlapping refreshes: one runs, and one more follows if asked for meanwhile. A fresh
+   * refresh reads at the current head (or `minBlock`, if later) and bypasses the session cache.
+   */
+  function refresh(fresh: boolean, minBlock?: bigint): Promise<void> {
+    if (fresh) {
+      wantFresh = true
+      if (minBlock !== undefined) wantMin = wantMin === undefined ? minBlock : maxBlock(wantMin, minBlock)
+    }
     if (inFlight) {
       again = true
       return inFlight
@@ -107,14 +175,20 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
       try {
         do {
           again = false
-          await load()
+          const fresh = wantFresh
+          const min = wantMin
+          wantFresh = false
+          wantMin = undefined
+          const head = fresh ? await headBlock(clients.http, true) : undefined
+          await load(head === undefined ? undefined : min === undefined ? head : maxBlock(head, min))
         } while (again && !destroyed)
       } catch (error) {
         const { message, retryAfterSeconds } = describeError(error)
         set({ status: "error", error: message })
         if (retryAfterSeconds !== undefined) {
+          // One retry once the budget resets; the session cache may answer it if another panel got there first.
           clearTimeout(retryTimer)
-          retryTimer = setTimeout(() => void refresh(), Math.min(retryAfterSeconds, 900) * 1000)
+          retryTimer = setTimeout(() => void refresh(false), Math.min(retryAfterSeconds, 900) * 1000)
         }
       } finally {
         inFlight = undefined
@@ -123,31 +197,43 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     return inFlight
   }
 
-  const scheduleRefresh = () => {
+  const scheduleRefresh = (minBlock?: bigint) => {
     clearTimeout(refreshTimer)
-    refreshTimer = setTimeout(() => void refresh(), 400)
+    refreshTimer = setTimeout(() => void refresh(true, minBlock), 400)
   }
 
-  function onCreated(key: Hex, owner: string) {
-    const trust = state.trust
-    if (trust?.roots.includes(owner as Hex)) return scheduleRefresh() // the trust list may have changed
+  function onCreated(key: Hex, owner: string, block: bigint) {
+    if (roots.has(owner)) {
+      if (block > trustBlock) scheduleRefresh(block) // the trust list may have changed
+      return
+    }
     // Arkiv is shared and busy: entities from untrusted owners are never re-read live, which keeps
     // an idle viewer of a trusted panel at zero queries. The ignored list comes with each snapshot.
-    if (trust && !trust.members.has(owner)) return
-    queued.add(key)
-    // Without a trust list any event could match, so batch those more slowly.
-    flushTimer ??= setTimeout(() => void flush(), trust ? 250 : 5000)
+    if (config.trust ? state.trust && !state.trust.members.has(owner) : scope && !scope.has(owner)) return
+    queued.set(key, { owner, block })
+    if (flushTimer) return
+    const wait = config.trust || scope ? SCOPED_FLUSH : Math.max(SCOPED_FLUSH, lastFlush + UNSCOPED_FLUSH - Date.now())
+    flushTimer = setTimeout(() => void flush(), wait)
   }
 
   async function flush() {
     flushTimer = undefined
+    if (destroyed) return
+    if (config.trust && !state.trust) {
+      // Events that arrive while the trust list loads wait for it; a failed load re-reads everything anyway.
+      if (state.status === "error") queued.clear()
+      else flushTimer = setTimeout(() => void flush(), 500)
+      return
+    }
     const known = new Set(state.rows.map((r) => r.key))
-    const keys = [...queued].filter((k) => !known.has(k))
+    const batch = [...queued].filter(([key, e]) => !known.has(key) && trusts(state.trust, e.owner))
     queued.clear()
-    if (keys.length === 0 || destroyed) return
+    if (batch.length === 0) return
+    lastFlush = Date.now()
+    const block = batch.reduce((m, [, e]) => maxBlock(m, e.block), 0n)
     try {
       // Ask the node which new entities match this panel, then re-check each creator.
-      const found = await fetchMatchingMany(clients.http, keys, config.query, config.payload)
+      const found = await fetchMatchingMany(clients.http, batch.map(([key]) => key), config.query, config.payload, block)
       const fresh = found.filter((r) => !known.has(r.key) && trusts(state.trust, r.creator))
       if (fresh.length) recompute([...state.rows, ...fresh])
     } catch (error) {
@@ -162,7 +248,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   }
 
   function onExtended(key: Hex, expiresAt: bigint) {
-    if (!state.rows.some((r) => r.key === key)) return
+    if (!state.rows.some((r) => r.key === key && r.expiresAt !== expiresAt)) return
     recompute(state.rows.map((r) => (r.key === key ? { ...r, expiresAt } : r)))
   }
 
@@ -186,7 +272,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     if (started) return
     started = true
     if (config.live) startLive() // watch first, so nothing lands between snapshot and subscription
-    void refresh()
+    void refresh(false)
   }
 
   return {
@@ -198,7 +284,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
       start()
       return () => listeners.delete(listener)
     },
-    refresh,
+    refresh: () => refresh(true),
     destroy() {
       destroyed = true
       clearTimeout(refreshTimer)

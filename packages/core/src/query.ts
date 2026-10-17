@@ -1,4 +1,5 @@
 import type { FullEntity, PublicArkivClient } from "@arkiv-network/sdk"
+import { createReadCache, type ReadCache, type ReadSpec } from "./cache"
 import { toRow } from "./rows"
 import type { Row, Where } from "./types"
 import { createdByAny, toExpression } from "./where"
@@ -18,49 +19,94 @@ export type FetchOptions = {
   maxRows?: number
   /** Also fetch payload and content type. Off by default: reads are metered, so fetch only what is shown. */
   payload?: boolean
+  /**
+   * Skip snapshots the session cache already holds and read at a newly fetched head, e.g. right
+   * after a write. Ignored when `atBlock` is set.
+   */
+  fresh?: boolean
 }
 
 /** Everything a Row needs except the payload. */
 const LEAN = { key: true, owner: true, creator: true, createdAt: true, expiresAt: true, creationFlags: true, attributes: true } as const
 const FULL = { ...LEAN, contentType: true, payload: true } as const
 
-/** Reads shared across panels on one client: the head block for a moment, identical walks at one block. */
 const heads = new WeakMap<object, { at: number; block: Promise<bigint> }>()
-const walks = new WeakMap<object, Map<string, { at: number; rows: Promise<Row[]> }>>()
+const caches = new WeakMap<object, ReadCache>()
 const HEAD_TTL = 2_000
-const WALK_TTL = 30_000
+/** How long a head snapshot answers identical (or narrower) reads in this tab. */
+export const DEFAULT_CACHE_TTL = 90_000
 
-/** The current block, shared by every caller within two seconds, so panels loading together read one snapshot. */
-export function headBlock(client: PublicArkivClient): Promise<bigint> {
+/**
+ * The current block, shared by every caller within two seconds, so panels loading together read
+ * one snapshot. `fresh` always asks the node. Block numbers are not metered like queries.
+ */
+export function headBlock(client: PublicArkivClient, fresh = false): Promise<bigint> {
   const cached = heads.get(client)
-  if (cached && Date.now() - cached.at < HEAD_TTL) return cached.block
+  if (!fresh && cached && Date.now() - cached.at < HEAD_TTL) return cached.block
   const block = client.getBlockNumber({ cacheTime: 0 })
   heads.set(client, { at: Date.now(), block })
   block.catch(() => heads.delete(client))
   return block
 }
 
-export type FetchResult = { rows: Row[]; block: bigint }
+/** Gives a client its session read cache (`createClients` does this). */
+export function setReadCache(client: PublicArkivClient, cache: ReadCache) {
+  caches.set(client, cache)
+}
+
+/** The client's read cache; a memory-only one with the default TTL if none was set. */
+export function readCacheFor(client: PublicArkivClient): ReadCache {
+  let cache = caches.get(client)
+  if (!cache) caches.set(client, (cache = createReadCache({ ttlMs: DEFAULT_CACHE_TTL })))
+  return cache
+}
+
+/** `cached` is true when the rows came from a snapshot the session cache already held. */
+export type FetchResult = { rows: Row[]; block: bigint; cached?: boolean }
+
+const specOf = (options: FetchOptions): ReadSpec => ({
+  where: options.where,
+  creators: options.creators && [...new Set(options.creators.map((c) => c.toLowerCase()))].sort(),
+  payload: options.payload ?? false,
+  maxRows: options.maxRows ?? 50_000,
+})
 
 /**
  * Runs a query and follows cursors past the 200-per-page cap until done. Every page is read at one
  * pinned block so the walk is a consistent snapshot.
+ *
+ * Tiramisu prices every query the same, so reads go through a session cache first: identical
+ * concurrent reads share one request, and a head read finished within the TTL (default 90 s)
+ * answers the same read, or a narrower one (fewer creators, one value of an OR, an extra
+ * equality), without a query. Pinned reads (`atBlock`) reuse only a snapshot of that exact block.
  */
 export async function fetchAll(client: PublicArkivClient, options: FetchOptions): Promise<FetchResult> {
-  const block = options.atBlock ?? (await headBlock(client))
-  if (options.creators && options.creators.length === 0) return { rows: [], block }
+  if (options.creators && options.creators.length === 0) {
+    return { rows: [], block: options.atBlock ?? (await headBlock(client)) }
+  }
+  if (options.where.length === 0) throw new Error("collate: a query needs at least one predicate")
+  const spec = specOf(options)
+  const cache = readCacheFor(client)
+  const pinned = options.atBlock
+  const hit = pinned !== undefined ? cache.at(spec, pinned) : options.fresh ? undefined : cache.head(spec)
+  if (hit) return hit
+  const block = pinned !== undefined ? Promise.resolve(pinned) : headBlock(client, options.fresh)
+  const rows = block.then((b) => readAll(client, spec, b))
+  cache.add(spec, pinned ?? block, rows)
+  return { rows: await rows, block: await block, cached: false }
+}
 
+/** The network part: one walk per 25 creators, in parallel, merged and de-duplicated. */
+async function readAll(client: PublicArkivClient, spec: ReadSpec, block: bigint): Promise<Row[]> {
   const groups: Where[][] = []
-  if (options.creators) {
-    for (let i = 0; i < options.creators.length; i += CREATOR_CHUNK) {
-      groups.push([...options.where, createdByAny(options.creators.slice(i, i + CREATOR_CHUNK))])
+  if (spec.creators) {
+    for (let i = 0; i < spec.creators.length; i += CREATOR_CHUNK) {
+      groups.push([...spec.where, createdByAny(spec.creators.slice(i, i + CREATOR_CHUNK))])
     }
   } else {
-    groups.push(options.where)
+    groups.push(spec.where)
   }
-
-  const maxRows = options.maxRows ?? 50_000
-  const pages = await Promise.all(groups.map((where) => sharedWalk(client, where, block, maxRows, options.payload ?? false)))
+  const pages = await Promise.all(groups.map((where) => walk(client, where, block, spec.maxRows, spec.payload)))
   const seen = new Set<string>()
   const rows: Row[] = []
   for (const row of pages.flat()) {
@@ -68,26 +114,10 @@ export async function fetchAll(client: PublicArkivClient, options: FetchOptions)
     seen.add(row.key)
     rows.push(row)
   }
-  return { rows, block }
-}
-
-/** One walk per identical (query, block, selection) at a time; results are immutable at a fixed block. */
-function sharedWalk(client: PublicArkivClient, where: Where[], block: bigint, maxRows: number, payload: boolean) {
-  let cache = walks.get(client)
-  if (!cache) walks.set(client, (cache = new Map()))
-  const now = Date.now()
-  for (const [k, v] of cache) if (now - v.at > WALK_TTL) cache.delete(k)
-  const key = `${block}|${payload}|${maxRows}|${JSON.stringify(where)}`
-  const hit = cache.get(key)
-  if (hit) return hit.rows
-  const rows = walk(client, where, block, maxRows, payload)
-  cache.set(key, { at: now, rows })
-  rows.catch(() => cache.delete(key))
   return rows
 }
 
 async function walk(client: PublicArkivClient, where: Where[], block: bigint, maxRows: number, payload: boolean) {
-  if (where.length === 0) throw new Error("collate: a query needs at least one predicate")
   const rows: Row[] = []
   let page = await client
     .select(payload ? FULL : LEAN)
@@ -103,13 +133,23 @@ async function walk(client: PublicArkivClient, where: Where[], block: bigint, ma
   return rows
 }
 
-/** Fetches those of `keys` that still match the predicates, in one query per 25 keys. */
-export async function fetchMatchingMany(client: PublicArkivClient, keys: readonly string[], where: Where[], payload = false): Promise<Row[]> {
+/**
+ * Fetches those of `keys` that still match the predicates, in one query per 25 keys. Pass the
+ * block the newest key was created in, so the read is never older than the entities it looks for.
+ */
+export async function fetchMatchingMany(
+  client: PublicArkivClient,
+  keys: readonly string[],
+  where: Where[],
+  payload = false,
+  atBlock?: bigint,
+): Promise<Row[]> {
   const rows: Row[] = []
+  const block = atBlock ?? (await headBlock(client, true))
   for (let i = 0; i < keys.length; i += CREATOR_CHUNK) {
     const byKey = keys.slice(i, i + CREATOR_CHUNK).map((k): Where => ({ op: "eq", field: "$key", value: { type: "key", value: k } }))
     const anyKey: Where = byKey.length === 1 ? byKey[0]! : { op: "or", any: byKey }
-    rows.push(...(await fetchAll(client, { where: [anyKey, ...where], payload })).rows)
+    rows.push(...(await fetchAll(client, { where: [anyKey, ...where], payload, atBlock: block })).rows)
   }
   return rows
 }
