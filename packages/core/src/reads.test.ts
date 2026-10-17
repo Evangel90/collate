@@ -330,6 +330,49 @@ describe("query budget: Results page", () => {
   })
 })
 
+describe("query budget: other pages", () => {
+  it("Studio's polling-units preset after the results page costs no query", async () => {
+    const { chain, clients } = setup()
+    await fetchAll(clients.http, electionReads([CA, CB]))
+    const units = await loaded(
+      createPanel(clients, { title: "Polling units", query: [eq("type", "unit"), eq("election", E), eq("$creator", v.addr(CA))], groupBy: "state", sum: ["registered"], view: "table" }),
+    )
+    expect(chain.count()).toBe(1)
+    expect(units.rows).toHaveLength(4)
+    expect(units.total.sums.registered).toBe(400)
+  })
+
+  it("Observer page: 2 queries, accreditations (Q9) answered from the setup read", async () => {
+    const { chain, clients } = setup()
+    void fetchAll(clients.http, electionReads([CA, CB]))
+    const [acc] = await Promise.all([
+      fetchAll(clients.http, { where: [eq("type", "accreditation"), eq("election", E), eq("observer", O3)], creators: [CA, CB] }),
+      fetchAll(clients.http, { where: [eq("election", E)], creators: [O3] }),
+    ])
+    await fetchAll(clients.http, electionReads([CA, CB])) // the form's useElection
+    expect(chain.count()).toBe(2)
+    expect(creators(acc.rows)).toEqual([CA, CB])
+  })
+
+  it("Coordinator console: one setup read, and its results panel resolves trust from it", async () => {
+    const { chain, clients } = setup()
+    const { rows } = await fetchAll(clients.http, electionReads([CA]))
+    expect(rows.filter((r) => r.attrs.type === "accreditation")).toHaveLength(3)
+    await loaded(createPanel(clients, resultsPanel(CA, { includeIgnored: false })))
+    expect(chain.count()).toBe(2)
+  })
+
+  it("Coordinator console right after that group's results page costs no query", async () => {
+    const { chain, clients } = setup()
+    await fetchAll(clients.http, electionReads([CA, CB]))
+    await loaded(createPanel(clients, resultsPanel(CA)))
+    await fetchAll(clients.http, electionReads([CA]))
+    const mine = await loaded(createPanel(clients, resultsPanel(CA, { includeIgnored: false })))
+    expect(chain.count()).toBe(2)
+    expect(creators(mine.rows)).toEqual([O1, O2, O3])
+  })
+})
+
 describe("query budget: live updates", () => {
   it("an idle page makes no queries, and an untrusted write costs none", async () => {
     const { chain, clients, emit } = setup()

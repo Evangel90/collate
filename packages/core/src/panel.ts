@@ -1,5 +1,6 @@
 import type { Hex } from "viem"
 import { aggregate } from "./aggregate"
+import { creatorScope } from "./cache"
 import type { Clients } from "./client"
 import { findConsensus } from "./disputes"
 import { describeError } from "./errors"
@@ -7,7 +8,7 @@ import { replay, watch } from "./live"
 import { fetchAll, fetchMatchingMany, headBlock, type FetchResult } from "./query"
 import { supersede } from "./supersede"
 import { partitionByTrust, resolveTrust } from "./trust"
-import type { Panel, PanelState, Row, TrustSet, Where } from "./types"
+import type { Panel, PanelState, Row, TrustSet } from "./types"
 
 export type PanelHandle = {
   readonly config: Panel
@@ -41,18 +42,6 @@ export function computePanel(
     : { resolved: current, consensus: [], disputes: [] }
   const { groups, total } = aggregate(resolved, { groupBy: config.groupBy, sum: config.sum })
   return { current, superseded, resolved, consensus, disputes, groups, total }
-}
-
-/** The wallets a query is restricted to by a top-level `$creator` equality or OR of them. */
-export function creatorScope(query: Where[]): Set<string> | undefined {
-  for (const w of query) {
-    const parts = w.op === "or" ? w.any : [w]
-    const values = parts.map((p) => (p.op === "eq" && p.field === "$creator" ? p.value : undefined))
-    if (values.length && values.every((v) => v !== undefined)) {
-      return new Set(values.map((v) => String(typeof v === "object" ? v.value : v).toLowerCase()))
-    }
-  }
-  return undefined
 }
 
 const maxBlock = (a: bigint, b: bigint) => (a > b ? a : b)

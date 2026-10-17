@@ -159,6 +159,18 @@ function revive(_key: string, value: unknown) {
 
 /* ---------- Coverage: can a finished read answer another one in the browser? ---------- */
 
+/** The wallets a query is restricted to by a top-level `$creator` equality or OR of them. */
+export function creatorScope(query: Where[]): Set<string> | undefined {
+  for (const w of query) {
+    const parts = w.op === "or" ? w.any : [w]
+    const values = parts.map((p) => (p.op === "eq" && p.field === "$creator" ? p.value : undefined))
+    if (values.length && values.every((v) => v !== undefined)) {
+      return new Set(values.map((v) => String(typeof v === "object" ? v.value : v).toLowerCase()))
+    }
+  }
+  return undefined
+}
+
 type RowFilter = (row: Row) => boolean
 const ALL: RowFilter = () => true
 
@@ -241,9 +253,10 @@ export function covers(c: ReadSpec, r: ReadSpec): RowFilter | undefined {
   if (r.payload && !c.payload) return undefined
   if (c.maxRows < r.maxRows) return undefined
   if (c.creators) {
-    if (!r.creators) return undefined
+    // A `$creator` filter written into the predicates restricts creators just as well.
+    const asked = r.creators ?? [...(creatorScope(r.where) ?? [])]
     const have = new Set(c.creators)
-    if (r.creators.some((x) => !have.has(x))) return undefined
+    if (asked.length === 0 || asked.some((x) => !have.has(x))) return undefined
   }
   if (!c.where.every((cw) => r.where.some((rw) => implies(rw, cw)))) return undefined
   const extra = r.where.filter((rw) => !c.where.some((cw) => same(rw, cw)))
