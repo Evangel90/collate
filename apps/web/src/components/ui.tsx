@@ -12,6 +12,8 @@ const PATHS: Record<string, ReactNode> = {
   lock: <path d="M6 11h12v10H6z M8 11V7a4 4 0 018 0v4" />,
   upload: <path d="M12 16V4 M7 9l5-5 5 5 M4 20h16" />,
   eye: <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 15a3 3 0 100-6 3 3 0 000 6z" />,
+  expand: <path d="M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7" />,
+  minimise: <path d="M4 14h6v6 M20 10h-6V4 M14 10l7-7 M3 21l7-7" />,
   database: <path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />,
 }
 
