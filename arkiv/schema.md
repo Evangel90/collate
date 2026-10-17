@@ -90,7 +90,7 @@ Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.ne
 
 | Who | What | How |
 | --- | --- | --- |
-| Coordinator | Election + all its units (+ accreditations in the seed) | One `executeBatch` of creates: the election appears complete or not at all |
+| Coordinator | Election + all its units (+ accreditations in the seed) | One `executeBatch` of creates, so the election appears complete or not at all. Tiramisu refused an 81-create batch without a reason ([friction #11](friction.md)), so the seed falls back to atomic chunks of 15; the 72-unit demo landed that way |
 | Coordinator | Accredit / extend lease / revoke | `createEntity` / `extendEntity` (`ExpirationTime.atBlock(expiresAt + 7 days)`) / `deleteEntity` |
 | Observer | Result or correction | `createEntity` with `flags: { readonly: true, permissionlessExtension: true }` |
 | Anyone | Keep a result alive | `extendEntity` (`ExpirationTime.atBlock(expiresAt + 30 days)`) |
@@ -109,7 +109,7 @@ Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.ne
 | Creation flags: readonly, permissionless extension | Results, corrections | Results can't be edited by anyone; anyone can keep them alive |
 | Delete | Revoking an accreditation | The observer's results stop counting for that group immediately (live) |
 | WebSocket entity events | Every live panel | Totals update without refresh |
-| Batch writes | Election setup | Election and units land atomically |
+| Batch writes | Election setup | Election and units land atomically (in chunks of 15 when a batch is too large) |
 
 **Deliberately not used:** ownership transfer and `ownedBy()` (no product need), patches (results are immutable by design).
 
