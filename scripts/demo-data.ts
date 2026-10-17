@@ -1,6 +1,7 @@
 /**
  * The synthetic demo election: 1 election, 2 observer groups, 12 observers, 48 polling units across
- * 2 states, 4 LGAs and 8 wards, 3 fictional parties, deliberate disputes and one correction.
+ * 2 states, 4 LGAs and 8 wards, 3 fictional parties, deliberate disagreements, second counts and one
+ * correction.
  * Everything is generated from a fixed seed, so every run produces the same figures.
  * No real people or places beyond two state names.
  */
@@ -109,12 +110,24 @@ export const alias = (o: number) => `Observer ${String(o + 1).padStart(2, "0")}`
 export const EXTRAS = {
   /** Observer 03 also counts unit 0 and agrees with Observer 01: a confirmation. */
   confirmation: { observer: 2, unit: 0 },
-  /** Observer 04 also counts unit 1 and disagrees with Observer 01: dispute in group A. */
+  /** Observer 04 also counts unit 1 and disagrees with Observer 01; outvoted once Observer 02 agrees. */
   disputeA: { observer: 3, unit: 1, shift: 37 },
-  /** Observer 02 also counts unit 40 and disagrees with Observer 07: second dispute in group A. */
+  /** Observer 02 also counts unit 40 and disagrees with Observer 07: one against one, contested in group A. */
   disputeA2: { observer: 1, unit: 40, shift: 52 },
-  /** Observer 10 disagrees with Observer 06 on unit 33: dispute in group B. */
+  /** Observer 10 disagrees with Observer 06 on unit 33: contested in group B. */
   disputeB: { observer: 9, unit: 33, shift: 29 },
+  /**
+   * Second counts that agree with the unit's first observer, for committee consensus. Observer 02 on
+   * unit 1 makes it certified 2/3 with Observer 04 the outlier; Observer 04 on unit 13 agrees with
+   * Observer 03's correction; the rest give group A units that still count at quorum 2.
+   */
+  agreements: [
+    { observer: 1, unit: 1 },
+    { observer: 3, unit: 13 },
+    { observer: 0, unit: 20 },
+    { observer: 4, unit: 36 },
+    { observer: 5, unit: 44 },
+  ],
   /** Observer 03 mistypes unit 13, then posts a correction. */
   correction: { observer: 2, unit: 13 },
   /** An unaccredited wallet posts an inflated unit 0. Nobody trusts it, so it never counts. */
