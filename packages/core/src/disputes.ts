@@ -1,16 +1,43 @@
 import { later } from "./supersede"
-import type { Dispute, Row } from "./types"
+import type { Consensus, Dispute, Row } from "./types"
 
 /**
- * Groups rows by `key`, keeps the latest row from each source, and flags groups where sources
- * disagree on any compared field. Agreeing groups contribute one row to `resolved`; disputed groups
- * contribute none, so a disagreement is shown, never silently counted.
+ * Committee consensus. Groups rows by `key` and keeps the latest row from each source. Within a
+ * group, sources that report identical compared fields form a bucket. The largest bucket certifies
+ * the group when it has at least `quorum` sources and is a strict majority of those who reported;
+ * the other buckets are outliers. A group that is not certified is `pending` while fewer than
+ * `quorum` sources have reported, and `contested` after that.
+ *
+ * Only certified groups reach `resolved`, with one row each, so a disagreement is shown, never
+ * silently counted, and one bad source cannot veto a unit that a majority agrees on.
  */
-export function findDisputes(
+export function findConsensus(
   rows: Row[],
   key: string,
   compareFields: string[],
-): { resolved: Row[]; disputes: Dispute[] } {
+  quorum = 1,
+): { resolved: Row[]; consensus: Consensus[]; disputes: Dispute[] } {
+  const { groups, unkeyed } = latestPerSource(rows, key)
+  const resolved: Row[] = [...unkeyed]
+  const consensus: Consensus[] = []
+  for (const [k, bySource] of groups) {
+    const entries = [...bySource.values()].sort((a, b) => (later(a, b) ? 1 : -1))
+    const c = decide(k, entries, compareFields, normalQuorum(quorum))
+    consensus.push(c)
+    if (c.status === "certified") resolved.push(c.agreeing[c.agreeing.length - 1]!)
+  }
+  consensus.sort((a, b) => a.key.localeCompare(b.key))
+  const disputes = consensus.filter((c) => c.status === "contested").map((c) => ({ key: c.key, entries: c.entries }))
+  return { resolved, consensus, disputes }
+}
+
+/** The previous contract: quorum 1, so any group a majority agrees on counts. */
+export function findDisputes(rows: Row[], key: string, compareFields: string[]): { resolved: Row[]; disputes: Dispute[] } {
+  const { resolved, disputes } = findConsensus(rows, key, compareFields, 1)
+  return { resolved, disputes }
+}
+
+function latestPerSource(rows: Row[], key: string) {
   const groups = new Map<string, Map<string, Row>>()
   const unkeyed: Row[] = []
   for (const row of rows) {
@@ -24,17 +51,29 @@ export function findDisputes(
     if (!prior || later(row, prior)) bySource.set(row.creator, row)
     groups.set(String(k), bySource)
   }
+  return { groups, unkeyed }
+}
 
-  const resolved: Row[] = [...unkeyed]
-  const disputes: Dispute[] = []
-  for (const [k, bySource] of groups) {
-    const entries = [...bySource.values()].sort((a, b) => (later(a, b) ? 1 : -1))
-    const signatures = new Set(entries.map((r) => signature(r, compareFields)))
-    if (signatures.size > 1) disputes.push({ key: k, entries })
-    else resolved.push(entries[0]!)
+/** `entries` is one row per source, oldest first. */
+function decide(key: string, entries: Row[], compareFields: string[], quorum: number): Consensus {
+  const buckets = new Map<string, Row[]>()
+  for (const row of entries) {
+    const sig = signature(row, compareFields)
+    buckets.set(sig, [...(buckets.get(sig) ?? []), row])
   }
-  disputes.sort((a, b) => a.key.localeCompare(b.key))
-  return { resolved, disputes }
+  // Largest bucket; on a tie, the first to form, which is never certified anyway (no majority).
+  const top = [...buckets.values()].reduce((a, b) => (b.length > a.length ? b : a))
+  const sources = entries.length
+  const base = { key, quorum, sources, entries }
+  if (top.length >= quorum && top.length * 2 > sources) {
+    return { ...base, status: "certified", agreeing: top, outliers: entries.filter((r) => !top.includes(r)) }
+  }
+  return { ...base, status: sources < quorum ? "pending" : "contested", agreeing: [], outliers: [] }
+}
+
+/** A whole number, 1 or more; anything else falls back to 1. */
+function normalQuorum(q: number): number {
+  return Number.isFinite(q) && q >= 1 ? Math.floor(q) : 1
 }
 
 function signature(row: Row, fields: string[]): string {

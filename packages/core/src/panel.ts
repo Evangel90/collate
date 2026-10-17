@@ -1,7 +1,7 @@
 import type { Hex } from "viem"
 import { aggregate } from "./aggregate"
 import type { Clients } from "./client"
-import { findDisputes } from "./disputes"
+import { findConsensus } from "./disputes"
 import { describeError } from "./errors"
 import { watch } from "./live"
 import { fetchAll, fetchMatchingMany, headBlock } from "./query"
@@ -20,19 +20,19 @@ export type PanelHandle = {
 
 const EMPTY_TOTAL = { group: "Total", count: 0, sums: {}, min: {}, max: {}, keys: [] }
 
-/** The pure part of a panel: trusted rows in, totals, disputes and supersessions out. */
+/** The pure part of a panel: trusted rows in, totals, consensus and supersessions out. */
 export function computePanel(
   config: Panel,
   rows: Row[],
-): Pick<PanelState, "current" | "superseded" | "resolved" | "disputes" | "groups" | "total"> {
+): Pick<PanelState, "current" | "superseded" | "resolved" | "consensus" | "disputes" | "groups" | "total"> {
   const { current, superseded } = config.supersedeField
     ? supersede(rows, config.supersedeField)
     : { current: rows, superseded: [] }
-  const { resolved, disputes } = config.disputeKey
-    ? findDisputes(current, config.disputeKey, config.compareFields ?? config.sum ?? [])
-    : { resolved: current, disputes: [] }
+  const { resolved, consensus, disputes } = config.disputeKey
+    ? findConsensus(current, config.disputeKey, config.compareFields ?? config.sum ?? [], config.quorum ?? 1)
+    : { resolved: current, consensus: [], disputes: [] }
   const { groups, total } = aggregate(resolved, { groupBy: config.groupBy, sum: config.sum })
-  return { current, superseded, resolved, disputes, groups, total }
+  return { current, superseded, resolved, consensus, disputes, groups, total }
 }
 
 /**
@@ -46,6 +46,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     current: [],
     superseded: [],
     resolved: [],
+    consensus: [],
     disputes: [],
     groups: [],
     total: EMPTY_TOTAL,

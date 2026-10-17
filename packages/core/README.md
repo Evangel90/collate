@@ -9,7 +9,7 @@ Arkiv, the Web3 database, has no server-side ordering or aggregation and returns
 | `query` | Runs a query and follows cursors past the 200-per-page cap, all pages at one pinned block | Queries, cursor pagination, `atBlock` |
 | `trust` | Resolves trusted wallets from list entities created by root wallets ("wallets named in entities created by X"), then keeps only entities those wallets created | `$creator` (immutable), OR over `$creator` |
 | `supersede` | Lets an entity replace an earlier one by the **same** creator; originals stay visible | `$creator`, entity keys |
-| `disputes` | Flags groups where trusted sources disagree on the same key | Attributes as the group key |
+| `disputes` | Committee consensus: groups rows by a key and counts a group only when at least `quorum` trusted sources agree and they are a strict majority; the rest are pending or contested | Attributes as the group key, `$creator` as the source |
 | `aggregate` | Group-by, sum, count, min, max and sort in the browser | Typed numeric attributes |
 | `live` | Subscribes to entity events over WebSocket and patches results in place, re-checking each new entity against the query on the node | `watchEntityEvents`, no `fromBlock` |
 | `share` | Encodes a whole panel config into a URL and back | — |
@@ -42,6 +42,7 @@ const panel = collate.panel({
   },
   supersedeField: "corrects",
   disputeKey: "unit_code",
+  quorum: 2, // a unit counts once two trusted observers agree
   groupBy: "state",
   sum: ["votes_a", "votes_b", "votes_c"],
   view: "bar",
@@ -49,7 +50,7 @@ const panel = collate.panel({
 })
 
 const stop = panel.subscribe((state) => {
-  // state.groups, state.total, state.disputes, state.superseded, state.ignored, state.block, state.live
+  // state.groups, state.total, state.consensus, state.disputes, state.superseded, state.ignored, state.block, state.live
   render(state)
 })
 ```
@@ -80,8 +81,9 @@ type Panel = {
   supersedeField?: string   // attribute naming an earlier entity (same creator) this one replaces
   groupBy?: string          // attribute, or $creator / $owner / $key
   sum?: string[]
-  disputeKey?: string       // flag groups whose trusted sources disagree…
-  compareFields?: string[]  // …on these fields (default: sum)
+  disputeKey?: string       // rows sharing this attribute are one group…
+  compareFields?: string[]  // …whose sources must agree on these fields (default: sum)…
+  quorum?: number           // …at least this many of them, and a strict majority (default 1)
   view: "table" | "bar"
   live?: boolean
   includeIgnored?: boolean  // also list matching entities from untrusted creators
@@ -95,6 +97,32 @@ type Where =
   | { op: "and"; all: Where[] }
 ```
 
+## Consensus
+
+With `disputeKey` set, each group keeps the latest row per source (`$creator`) and sorts sources into buckets of identical `compareFields`. With `top` the largest bucket and `sources` the number that reported:
+
+| Status | When | Counted |
+| --- | --- | --- |
+| `certified` | `top >= quorum` and `top > sources / 2` | Once: the latest row in `top`. Other buckets are `outliers` |
+| `pending` | not certified and `sources < quorum` | No |
+| `contested` | otherwise | No; every version is in `disputes` |
+
+So at the default quorum of 1, a lone report counts, one against one is contested, and two against one counts with one outlier. At quorum 2, a lone report is pending. One bad source can no longer veto a group that a majority agrees on.
+
+```ts
+type Consensus = {
+  key: string
+  status: "certified" | "contested" | "pending"
+  quorum: number
+  sources: number
+  agreeing: Row[]  // empty unless certified
+  outliers: Row[]  // certified only: sources that said something else
+  entries: Row[]   // latest row per source
+}
+```
+
+`state.consensus` lists every group, sorted by key; `state.disputes` is the contested ones; `state.resolved` (unkeyed rows plus one row per certified group) is what gets aggregated.
+
 `Where` is plain JSON, so a panel fits in a URL (`encodePanel` / `decodePanel`). Numbers encode as `u64`, the Arkiv convention for counts and timestamps; use `v.i32(n)`, `v.addr(a)` and friends to pick another type.
 
 ## Pure functions
@@ -102,7 +130,9 @@ type Where =
 Everything after the fetch is pure and unit-tested, so you can use it on rows from anywhere:
 
 ```ts
-import { aggregate, buildTrust, computePanel, findDisputes, supersede } from "@collate/core"
+import { aggregate, buildTrust, computePanel, findConsensus, supersede } from "@collate/core"
+
+const { resolved, consensus, disputes } = findConsensus(rows, "unit_code", ["votes_a", "votes_b"], 2)
 ```
 
 ## Licence

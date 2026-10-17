@@ -25,6 +25,7 @@ export function decodePanel(encoded: string): Panel {
   if (!Array.isArray(panel.query) || panel.query.length === 0) throw new Error("collate: panel has no query")
   if (panel.view !== "table" && panel.view !== "bar") panel.view = "table"
   panel.title = typeof panel.title === "string" ? panel.title : "Untitled panel"
+  if (panel.quorum !== undefined && !(Number.isInteger(panel.quorum) && panel.quorum >= 1)) delete panel.quorum
   return panel
 }
 
