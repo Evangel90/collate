@@ -81,3 +81,11 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Steps to reproduce: `import { ARKIV_ADDRESS } from "@arkiv-network/sdk"` fails to resolve; `grep -rn "ARKIV_ADDRESS =" node_modules/@arkiv-network/sdk/dist` shows the value.
 - Workaround: collate-core hard-codes the address in `live.ts` (`replay`).
 - Suggested fix: export `ARKIV_ADDRESS`, or add a `getEntityEvents({ fromBlock, toBlock })` action that decodes a range of events once.
+
+### 11. A large `executeBatch` is refused with no reason, so "the election lands whole" breaks past some size
+- Surface: TypeScript SDK 0.8.1 `executeBatch` (creates only) on Tiramisu, from `npm run seed` on 18 Oct 2026
+- Expected: one batch of 81 creates (an election, 72 units, 8 accreditations, attributes only plus small JSON payloads) lands atomically, as a 57-create setup batch for the earlier demo did, or fails with a reason that says which limit was hit.
+- Actual: both coordinators' 81-create batches failed with `Transaction failed: Execution error without revert data`. Nothing from either batch exists afterwards (the seed's re-read at the next block found 0 entities for that coordinator), and the same 81 creates in batches of 15 all landed (12 transactions, links in `seed-transactions.md`). The error does not say whether gas, payload size or an operation count was the limit, and the batch-size limit is not documented next to `executeBatch`.
+- Steps to reproduce: `npm run seed` against a fresh election id with the 72-unit demo in `scripts/demo-data.ts`; the coordinator step logs `one batch was refused (...); splitting`.
+- Workaround: the seed tries one batch first and falls back to atomic chunks of 15. The cost is that an election is briefly visible with only some of its units; the app tolerates this because it computes "units with no result" from whatever units exist.
+- Suggested fix: document the maximum operations or bytes per `executeBatch`, and surface the limit in the error (or let the SDK split a batch and report that it is no longer atomic).

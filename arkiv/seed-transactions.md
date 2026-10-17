@@ -45,3 +45,29 @@ The current demo election. `npm run seed` appends one row per transaction below:
 
 | Wallet | What | Transaction |
 | --- | --- | --- |
+| Coordinator A | election setup (1–15 of 81) | [0x26f89f4f…](https://tiramisu.explorer.arkiv.network/tx/0x26f89f4f198d7a1a13ef4a8b72355a79efcbf0ec0c1b6c380dcd1454422f1959) |
+| Coordinator A | election setup (16–30 of 81) | [0x35ebabf2…](https://tiramisu.explorer.arkiv.network/tx/0x35ebabf2dbee41a31e20fffba3efad23eb301db6c633d5ad4c11591eeb62015e) |
+| Coordinator A | election setup (31–45 of 81) | [0xafdec641…](https://tiramisu.explorer.arkiv.network/tx/0xafdec6416b7e9c97e71d18b9a73018ed047a871fa66c7a36b7992830048471fe) |
+| Coordinator A | election setup (46–60 of 81) | [0x81683d99…](https://tiramisu.explorer.arkiv.network/tx/0x81683d99e4b87ad88ad5092a7091134ddb152d1ae3b00194db821701abaaf269) |
+| Coordinator A | election setup (61–75 of 81) | [0xb79a0e94…](https://tiramisu.explorer.arkiv.network/tx/0xb79a0e944020e4ac5e665a135b2def222555d2b7cb9f8193bff7db032cd05446) |
+| Coordinator A | election setup (76–81 of 81) | [0xd073c926…](https://tiramisu.explorer.arkiv.network/tx/0xd073c9266f5f7580543b99937eb60629069278e3ffe352e252b7709e5670b373) |
+| Coordinator B | election setup (1–15 of 81) | [0x2860bf4a…](https://tiramisu.explorer.arkiv.network/tx/0x2860bf4ac31cff5295f6c27ae945699afc9f7ed1ae496b8d99575ad261d7c10a) |
+| Coordinator B | election setup (16–30 of 81) | [0x8cec7572…](https://tiramisu.explorer.arkiv.network/tx/0x8cec7572367549a5c6dee94923ee8971c997b397437b55bd1e1d02a554d078f4) |
+| Coordinator B | election setup (31–45 of 81) | [0xe1563aba…](https://tiramisu.explorer.arkiv.network/tx/0xe1563aba402234414874fea3479a094317dd960b62644f3e03ba340c6d1fbe9c) |
+| Coordinator B | election setup (46–60 of 81) | [0x8d7af587…](https://tiramisu.explorer.arkiv.network/tx/0x8d7af587f72fccf9720a61f2807b4dc4883342b05776efc460fce2174e076ecc) |
+| Coordinator B | election setup (61–75 of 81) | [0xd0e52c0a…](https://tiramisu.explorer.arkiv.network/tx/0xd0e52c0aa95843f5e97b8d7f20cdc5e020fcbcb08b8994cf303697bee63e1c39) |
+| Coordinator B | election setup (76–81 of 81) | [0x569414ae…](https://tiramisu.explorer.arkiv.network/tx/0x569414aefd2acb2e89315b40f70ec9b218d67e3e082358fd9914795e4b48ed4b) |
+| Observer 01 | 11 unit results (2 second counts) | [0x8923027f…](https://tiramisu.explorer.arkiv.network/tx/0x8923027fe8cebb83a30e9d71c59327b433c493b2117d45b52fc4aca70679be0a) |
+| Observer 02 | 10 unit results (1 second count) | [0xd84bb941…](https://tiramisu.explorer.arkiv.network/tx/0xd84bb9419ce9880af476310daafa44496ebfc4bb196e0cf75f6911b4d43ee9e0) |
+| Observer 03 | 9 unit results | [0x280168f6…](https://tiramisu.explorer.arkiv.network/tx/0x280168f6aba69718365fe8d08f87f6313e10a123ae7b866b2e37f749bac8d324) |
+| Observer 04 | 11 unit results (2 second counts) | [0xb275bd0c…](https://tiramisu.explorer.arkiv.network/tx/0xb275bd0c7486a95852afdbb9e56961713fbd057ecf21c06c59275d2392ae2785) |
+| Observer 05 | 10 unit results (1 second count) | [0x46a3dcff…](https://tiramisu.explorer.arkiv.network/tx/0x46a3dcff962753c3db4fe647cc3636dd785fd69b258b04139c5d200bfe5b4697) |
+| Observer 06 | 10 unit results (1 second count) | [0x09555ab8…](https://tiramisu.explorer.arkiv.network/tx/0x09555ab865372a51ae9f8fa98d3770ad299aa941baa7e9fb4b06bd18c58ce508) |
+| Observer 07 | 10 unit results (1 second count) | [0xe058fff8…](https://tiramisu.explorer.arkiv.network/tx/0xe058fff86167dbe8b12dea6013af2994262f762e13ed24b791b3f51945638fb3) |
+| Observer 08 | 8 unit results | [0x03083321…](https://tiramisu.explorer.arkiv.network/tx/0x0308332109834c3ea961b0b3f86ca015ab851abcce1ec85cff68057b56863c89) |
+| Observer 09 | 9 unit results | [0x31686ddd…](https://tiramisu.explorer.arkiv.network/tx/0x31686dddb6cbf9a9d379299374a02e26dfe32e92b1c9ba41802a8e32fcdf10d2) |
+| Observer 10 | 9 unit results | [0x5abdd8e1…](https://tiramisu.explorer.arkiv.network/tx/0x5abdd8e1fac21a3a4c86465f1abc5a3fc02586b73cbad41ca0e67f8efccbcce2) |
+| Observer 11 | 9 unit results | [0x56073984…](https://tiramisu.explorer.arkiv.network/tx/0x56073984663712bd391cfd6531ee305c923ad2f4d18e78d62c1705146e7987ff) |
+| Observer 12 | 9 unit results | [0x20fd8390…](https://tiramisu.explorer.arkiv.network/tx/0x20fd8390e4854a0155f213a65aa9359210c513b96e7fd692f35ab44cb74285fc) |
+| Observer 03 | correction of KN-FAG-06-003 | [0x4e44ff2f…](https://tiramisu.explorer.arkiv.network/tx/0x4e44ff2f358fd18db29c35d75dd11fc504e7d2b5045e666bb2043ca4d8dae348) |
+| Unaccredited | inflated result for LA-IKJ-03-001 | [0x33d07c87…](https://tiramisu.explorer.arkiv.network/tx/0x33d07c87162c11efe51f06cca9098d211147a590b6e303bb0d0d4b7f0b849b29) |
