@@ -12,6 +12,8 @@ type Props = {
   handle: PanelHandle | undefined
   shareLink: string
   onProof: (title: string, rows: Row[]) => void
+  /** Adds this panel to the dashboard; "pinned" and "full" disable the button. */
+  pin: { state: "can" | "pinned" | "full"; onPin: () => void }
 }
 
 function LiveBadge({ panel, state }: { panel: StudioPanel; state: PanelState | undefined }) {
@@ -43,7 +45,7 @@ function Stat({ label, value, tone, onClick }: { label: string; value: string | 
 }
 
 /** The live result: counts, the chart or table, disputes, and the exact query and share link. */
-export function Output({ panel, state, handle, shareLink, onProof }: Props) {
+export function Output({ panel, state, handle, shareLink, onProof, pin }: Props) {
   const [showQuery, setShowQuery] = useState(true)
   const sum = panel.sum ?? []
   const label = (f: string) => panel.labels?.[f] ?? f
@@ -71,6 +73,9 @@ export function Output({ panel, state, handle, shareLink, onProof }: Props) {
           <LiveBadge panel={panel} state={state} />
           <button type="button" className="btn btn-small" onClick={() => void handle?.refresh()} disabled={!handle || state?.status === "loading"}>
             Refresh
+          </button>
+          <button type="button" className="btn btn-small" onClick={pin.onPin} disabled={pin.state !== "can"} title={pin.state === "full" ? "The dashboard is full" : undefined}>
+            {pin.state === "pinned" ? "Pinned" : "Pin to dashboard"}
           </button>
         </div>
       </div>

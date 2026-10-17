@@ -2,6 +2,7 @@ import { decodePanel, encodePanel, renderWhere, type Row } from "@collate/core"
 import { Provenance, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Builder } from "../components/studio/Builder"
+import { Dashboard, MAX_PINNED, decodeDashboard, encodeDashboard } from "../components/studio/Dashboard"
 import { draftToPanel, fieldsFrom, normalize, panelToDraft, type Draft, type FieldInfo, type StudioPanel } from "../components/studio/model"
 import { Output } from "../components/studio/Output"
 import { PRESETS, type Preset } from "../components/studio/presets"
@@ -57,16 +58,30 @@ export function Explore({ params }: { params: URLSearchParams }) {
   const [error, setError] = useState(initial.error)
   const [proof, setProof] = useState<{ title: string; rows: Row[] }>()
   const [fields, setFields] = useState<FieldInfo[]>([])
-  // The encoded panel this page last wrote into the URL, so its own navigation does not reset the form.
-  const pushed = useRef<string | null>(fromUrl)
+  const dashParam = params.get("dash")
+  const [pinned, setPinned] = useState<StudioPanel[]>(() => decodeDashboard(dashParam))
+  // A dashboard link without a panel opens on the dashboard.
+  const [dashFirst] = useState(() => Boolean(dashParam) && !fromUrl)
+  // The query this page last wrote into the URL, so its own navigation does not reset the form.
+  const search = params.toString()
+  const pushed = useRef(search)
 
   useEffect(() => {
-    if (fromUrl === pushed.current) return
-    pushed.current = fromUrl
+    if (search === pushed.current) return
+    pushed.current = search
     setPanel(initial.panel)
     setDraft(panelToDraft(initial.panel))
     setError(initial.error)
-  }, [fromUrl, initial])
+    setPinned(decodeDashboard(dashParam))
+  }, [search, initial, dashParam])
+
+  /** Writes the panel on screen and the pinned panels into the URL (a new history entry). */
+  function writeUrl(current: StudioPanel, dash: StudioPanel[]) {
+    const query: Record<string, string> = { panel: encodePanel(current) }
+    if (dash.length) query.dash = encodeDashboard(dash)
+    pushed.current = new URLSearchParams(query).toString()
+    window.location.hash = href(currentPath(), query).slice(1)
+  }
 
   const { state, handle } = usePanel(collate, panel)
 
@@ -84,9 +99,7 @@ export function Explore({ params }: { params: URLSearchParams }) {
       setPanel(next)
       if (resetForm) setDraft(panelToDraft(next))
       setError(undefined)
-      const encoded = encodePanel(next)
-      pushed.current = encoded
-      window.location.hash = href(currentPath(), { panel: encoded }).slice(1)
+      writeUrl(next, pinned)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -103,7 +116,28 @@ export function Explore({ params }: { params: URLSearchParams }) {
   const runningJson = useMemo(() => tryJson(() => normalize(panel)) ?? JSON.stringify(panel), [panel])
   const dirty = tryJson(() => draftToPanel(draft)) !== runningJson
   const active = PRESETS.find((p) => JSON.stringify(p.panel) === runningJson)
-  const shareLink = `${window.location.origin}${window.location.pathname}${href(currentPath(), { panel: encodePanel(panel) })}`
+  const base = `${window.location.origin}${window.location.pathname}`
+  const shareLink = `${base}${href(currentPath(), { panel: encodePanel(panel) })}`
+  const dashLink = pinned.length ? `${base}${href(currentPath(), { dash: encodeDashboard(pinned) })}` : ""
+  const isPinned = pinned.some((p) => JSON.stringify(p) === JSON.stringify(panel))
+
+  function setDash(next: StudioPanel[]) {
+    setPinned(next)
+    writeUrl(panel, next)
+  }
+
+  const dashboard = pinned.length > 0 && (
+    <Dashboard
+      panels={pinned}
+      link={dashLink}
+      onEdit={(p) => {
+        show(p, true)
+        document.getElementById("studio-build")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }}
+      onRemove={(i) => setDash(pinned.filter((_, j) => j !== i))}
+      onProof={(title, rows) => setProof({ title, rows })}
+    />
+  )
 
   return (
     <div className="grid studio">
@@ -132,6 +166,8 @@ export function Explore({ params }: { params: URLSearchParams }) {
         </p>
       </section>
 
+      {dashFirst && dashboard}
+
       <Presets active={active} onPick={(p) => show(p.panel, true)} />
 
       {active?.source === "other" && active.about && (
@@ -144,7 +180,7 @@ export function Explore({ params }: { params: URLSearchParams }) {
         </p>
       )}
 
-      <div className="studio-layout">
+      <div className="studio-layout" id="studio-build">
         <Builder
           draft={draft}
           onChange={setDraft}
@@ -154,8 +190,17 @@ export function Explore({ params }: { params: URLSearchParams }) {
           onRun={runForm}
           onApplyJson={(p) => show(p, true)}
         />
-        <Output panel={panel} state={state} handle={handle} shareLink={shareLink} onProof={(title, rows) => setProof({ title, rows })} />
+        <Output
+          panel={panel}
+          state={state}
+          handle={handle}
+          shareLink={shareLink}
+          onProof={(title, rows) => setProof({ title, rows })}
+          pin={{ state: isPinned ? "pinned" : pinned.length >= MAX_PINNED ? "full" : "can", onPin: () => setDash([...pinned, panel]) }}
+        />
       </div>
+
+      {!dashFirst && dashboard}
 
       <UseInApp panel={panel} />
 

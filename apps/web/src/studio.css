@@ -176,3 +176,10 @@
   .studio-section, .studio-details { padding: 10px 12px; }
   .studio-stat { min-width: 0; flex: 1 1 calc(33% - 8px); }
 }
+
+/* ---------- Dashboard ---------- */
+.studio-dash { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.studio-mini { display: grid; gap: 10px; align-content: start; min-width: 0; padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); }
+.studio-mini-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; justify-content: space-between; }
+.studio-mini-head h3 { font-size: 15px; font-weight: 600; }
+.studio-mini-foot { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
