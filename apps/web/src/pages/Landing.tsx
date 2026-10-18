@@ -151,22 +151,23 @@ function LiveStat() {
   return (
     <div className="live-stat">
       <div className="live-stat-head">
-        <span className={`pill ${stat.status === "ready" ? "pill-live" : "pill-off"}`}>{stat.status === "ready" ? "Read from Arkiv" : "Arkiv"}</span>
-        {stat.status === "ready" && <span className="muted mono">block {stat.block.toLocaleString("en")}</span>}
+        <span className={`pill ${stat.status === "ready" ? "pill-live" : "pill-off"}`}>{stat.status === "ready" ? "Live on Arkiv" : "Arkiv"}</span>
+        {stat.status === "ready" && <span className="muted mono">as of block {stat.block.toLocaleString("en")}</span>}
       </div>
+      <p className="small">On Collate, a result is public the moment it is posted.</p>
       {stat.status === "loading" ? (
-        <p className="muted">Counting the demo election's results on Arkiv…</p>
+        <p className="muted">Counting the demo election's results…</p>
       ) : stat.status === "error" ? (
         <p className="muted">{stat.message}</p>
       ) : (
         <p className="live-stat-body">
           <b>{stat.results.toLocaleString("en")}</b>
-          <span>
-            unit results posted for <span className="mono">{deployment.election}</span> by {stat.wallets} wallets. The results page
-            decides which of them count.
-          </span>
+          <span>results posted so far in the demo election, by {stat.wallets} observer wallets.</span>
         </p>
       )}
+      <a className="link-btn small" href={href("/results")}>
+        See which ones count →
+      </a>
     </div>
   )
 }
