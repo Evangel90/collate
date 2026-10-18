@@ -38,19 +38,18 @@ function Hero() {
         <div className="eyebrow">
           <span className="pill">Built on Arkiv</span>
           <span className="pill">Tiramisu testnet</span>
-          <span className="pill">Synthetic data</span>
         </div>
         <h1 id="landing-h">
           Election results nobody can <span className="grad">quietly edit or switch off.</span>
         </h1>
         <p className="landing-lede">
-          When an official results portal stalls, the public loses sight of the count exactly when trust matters most.
+          When the official portal stalls, the public loses the count exactly when trust matters most. Nigeria in 2023 is one case;
+          India, or any election counted unit by unit, could be the next.
         </p>
         <p>
-          Collate is a public results board built on Arkiv. Accredited observers post each polling unit's result from their own
-          wallet, and once it is posted nobody can change it, Collate included. A unit counts only when the observers who reported it
-          agree. Every total is recomputed in your browser, straight from Arkiv, so there is no Collate server to block, pressure or
-          take down.
+          Observers post each polling unit's result from their own wallet. Once posted, nobody can change it, not even us. A unit
+          counts only when its observers agree, and every total is recomputed in your browser from Arkiv. There is no server to block
+          or take down.
         </p>
         <div className="cta-row">
           <a className="btn btn-primary btn-lg" href={href("/results")}>
@@ -67,7 +66,7 @@ function Hero() {
           </a>
         </div>
         <p className="row">
-          <span className="muted">Viewing needs no wallet and no login. Want to try posting a result yourself?</span>
+          <span className="muted">Watching needs no wallet. Want to post a result?</span>
           <a className="btn btn-small" href={href("/observe")}>
             Join the Open sandbox →
           </a>
@@ -76,17 +75,15 @@ function Hero() {
 
       <aside className="card hero-aside" aria-labelledby="gap-h">
         <div>
-          <p className="kicker">Nigeria, February 2023</p>
+          <p className="kicker">One example: Nigeria, February 2023</p>
           <h2 id="gap-h" className="hero-stat">
             Under 30%
           </h2>
-          <p className="small">
-            of polling-unit results were on the official IReV portal by 6 pm the day after the presidential vote.
-          </p>
+          <p className="small">of polling-unit results were on the official IReV portal the day after the presidential vote.</p>
         </div>
         <div className="meters">
-          <Meter label="By 6 pm the day after the vote" value={30} display="< 30%" />
-          <Meter label="By 9:30 pm, three days after the vote" value={45.19} display="45.19%" />
+          <Meter label="By 6 pm, the next day" value={30} display="< 30%" />
+          <Meter label="By 9:30 pm, three days later" value={45.19} display="45.19%" />
           <p className="muted">79,927 of 176,846 polling-unit results were up by then.</p>
         </div>
         <LiveStat />
@@ -181,14 +178,14 @@ const OFFERS: { audience: string; icon: string; title: string; body: string; lin
     audience: "For the public",
     icon: "eye",
     title: "Watch and verify the count",
-    body: "Choose which observer group you trust, then follow totals by state, LGA and ward as they update live. See which units are certified, contested or still waiting, and open any number to find the wallet that posted it.",
+    body: "Pick the observers you trust and follow live totals by region. See which units are certified, contested or waiting, and trace any number to the wallet that posted it.",
     links: [{ label: "See the demo election", to: "/results" }],
   },
   {
     audience: "For observer groups",
     icon: "users",
     title: "Run a committee of observers",
-    body: "Create an election and its polling units, accredit your observers' wallets, and share one link. Observers post from their own wallets; a mistake is fixed with a public correction, never a silent edit.",
+    body: "Set up an election, accredit your observers' wallets and share one link. Mistakes get a public correction, never a silent edit.",
     links: [
       { label: "Coordinator console", to: "/coordinate" },
       { label: "Observer page", to: "/observe" },
@@ -198,7 +195,7 @@ const OFFERS: { audience: string; icon: string; title: string; body: string; lin
     audience: "For builders",
     icon: "database",
     title: "Turn any Arkiv data into a live dashboard",
-    body: "Collate Studio works on any project's entities, not just elections: filter them, choose whose writes to trust, chart them and share the result as a link. The same engine, collate-core, drops into your own app.",
+    body: "Studio works on any Arkiv project, not just elections: filter entities, choose whose writes to trust, chart them and share a link. Its engine, collate-core, drops into your app.",
     links: [{ label: "Open Studio", to: "/studio" }],
   },
 ]
@@ -207,7 +204,7 @@ function WhatItDoes() {
   return (
     <section id="what" className="landing-section" aria-labelledby="what-h">
       <SectionHead kicker="One engine, three ways in" id="what-h" title="What you can do with Collate">
-        The same open engine serves the people watching an election, the groups observing it, and anyone building on Arkiv.
+        One open engine for the people watching an election, the groups observing it, and anyone building on Arkiv.
       </SectionHead>
       <div className="offer-grid">
         {OFFERS.map((o) => (
@@ -237,31 +234,31 @@ const COMPARE: { question: string; portal: string; website: string; collate: str
     question: "Can a posted result be changed later?",
     portal: "Yes, by whoever runs it",
     website: "Yes, by its owner, without a trace",
-    collate: "No. Results are readonly on Arkiv; a fix is a new, public correction beside the original.",
+    collate: "No. Results are readonly; a fix is a public correction beside the original.",
   },
   {
     question: "Can it be switched off?",
     portal: "One operator can delay it or take it down",
     website: "Its host can be throttled or taken down",
-    collate: "Anyone can serve this page or query Arkiv directly, and the data is still there.",
+    collate: "No. Anyone can serve this page or query Arkiv directly.",
   },
   {
     question: "Who decides which numbers count?",
     portal: "The operator",
     website: "The group that runs it",
-    collate: "You choose whose observers to trust; a unit counts when they agree.",
+    collate: "You pick whose observers to trust; a unit counts when they agree.",
   },
   {
     question: "What happens when observers disagree?",
     portal: "You don't see it",
     website: "Usually settled out of view",
-    collate: "The unit is marked contested, every version is shown, and outliers are named.",
+    collate: "The unit is marked contested and every version is shown.",
   },
   {
     question: "Can you check a number yourself?",
     portal: "Only by trusting the operator",
     website: "Only by trusting the site",
-    collate: "Every number links to the wallet that posted it and its entity on Arkiv.",
+    collate: "Yes. Every number links to its wallet and its Arkiv entity.",
   },
 ]
 
@@ -269,8 +266,8 @@ function Different() {
   return (
     <section id="different" className="landing-section" aria-labelledby="different-h">
       <SectionHead kicker="Why it is different" id="different-h" title="Nobody has to be trusted with the count">
-        Results portals and observer websites ask you to trust whoever runs them. Collate is built so that no single party,
-        including us, can edit, hide or switch off what observers reported.
+        Portals and observer sites ask you to trust whoever runs them. With Collate, no one, us included, can edit, hide or switch
+        off what observers reported.
       </SectionHead>
       <div className="card compare" role="table" aria-label="Collate compared with a results portal and an observer website">
         <div className="compare-row compare-head" role="row">
@@ -310,7 +307,7 @@ const CASES: Case[] = [
       { wallet: "0x7Acb…B17d", figures: [412, 288, 97], mark: "agree" },
       { wallet: "0xC8cD…29cc", figures: [512, 288, 97], mark: "outlier" },
     ],
-    note: "A strict majority of the members who reported agree, and at least the quorum of 2. The unit counts once; the third wallet is listed as an outlier.",
+    note: "A majority agrees and meets the quorum of 2. The unit counts; the third wallet is named as an outlier.",
   },
   {
     status: "contested",
@@ -322,7 +319,7 @@ const CASES: Case[] = [
       { wallet: "0x46B9…89cC", figures: [233, 301, 54], mark: "split" },
       { wallet: "0x4C18…E26f", figures: [233, 351, 54], mark: "split" },
     ],
-    note: "The members disagree and no version has a majority. Both versions are shown side by side and the unit stays out of the totals.",
+    note: "No version has a majority. Both are shown and the unit stays out of the totals.",
   },
   {
     status: "pending",
@@ -332,7 +329,7 @@ const CASES: Case[] = [
     of: 2,
     reports: [{ wallet: "0x7442…8574", figures: [180, 164, 40], mark: "agree" }],
     waiting: 1,
-    note: "Nobody disagrees yet, but one report is below the quorum. The unit waits for another member before it counts.",
+    note: "No disagreement, but one report is below the quorum. The unit waits for another.",
   },
 ]
 
@@ -342,9 +339,8 @@ function Consensus() {
   return (
     <section id="how" className="landing-section" aria-labelledby="how-h">
       <SectionHead kicker="k-of-n consensus" id="how-h" title="How consensus works">
-        No single observer decides a unit. It counts only when a <b>strict majority</b> of the observers who reported it post the
-        same figures, and at least <b>N</b> of them do. The coordinator suggests N, the quorum; each viewer can raise or lower it.
-        The examples below use N = 2.
+        A unit counts only when a <b>strict majority</b> of its observers post the same figures, and at least <b>N</b> of them
+        do. The coordinator suggests N; each viewer can change it. These examples use N = 2.
       </SectionHead>
 
       <div className="consensus-grid">
@@ -390,13 +386,13 @@ function Consensus() {
 
       <div className="fact-row">
         <Fact icon="eye" title="Outliers are named">
-          A member who disagrees with a certified result is listed by wallet, so anyone can ask why.
+          Anyone who disagrees with a certified result is listed by wallet.
         </Fact>
         <Fact icon="edit" title="Corrections stay public">
-          A correction names the result it replaces. The original and the correction both stay on the record.
+          A correction names the result it replaces; both stay on record.
         </Fact>
         <Fact icon="clock" title="Anyone keeps results alive">
-          Results allow permissionless extension: any viewer can extend their lifetime on Arkiv.
+          Any viewer can extend a result's lifetime on Arkiv.
         </Fact>
       </div>
     </section>
@@ -440,30 +436,30 @@ const STEPS: { title: string; body: ReactNode; link: { label: string; to: string
     title: "Connect a wallet",
     body: (
       <>
-        MetaMask, Rabby or any browser wallet. Collate asks it to add or switch to Arkiv Tiramisu (chain 7738577). Writes need test
-        GLM, free from the <a href={FAUCET} target="_blank" rel="noreferrer">Arkiv faucet</a>.
+        Any browser wallet. Collate switches it to Arkiv Tiramisu (chain 7738577). Writes need test GLM, free from the{" "}
+        <a href={FAUCET} target="_blank" rel="noreferrer">Arkiv faucet</a>.
       </>
     ),
     link: { label: "Get test GLM", to: FAUCET, external: true },
   },
   {
     title: "Create an election and set its quorum",
-    body: "On the Coordinator page, name the election, list its polling units and choose N, how many observers must agree. Collate creates the election and its units together, in a few batches if the list is long.",
+    body: "Name the election, list its polling units and set N, how many observers must agree.",
     link: { label: "Coordinator", to: "/coordinate" },
   },
   {
     title: "Accredit observer wallets",
-    body: "Add each observer's wallet, one at a time or as a pasted list. Testing alone? Accredit a second wallet of your own. Revoking an accreditation deletes it, and that wallet's results stop counting.",
+    body: "Add wallets one by one or as a pasted list. Testing alone? Accredit a second wallet of your own. Revoked wallets stop counting.",
     link: { label: "Coordinator", to: "/coordinate" },
   },
   {
     title: "Post a result",
-    body: "From an accredited wallet, enter a unit's figures. The result is stored readonly; a mistake is fixed with a correction that names the original.",
+    body: "From an accredited wallet, enter a unit's figures. Results are readonly; a mistake gets a correction.",
     link: { label: "Observer", to: "/observe" },
   },
   {
     title: "Watch it on Results",
-    body: "Each unit moves from pending to certified, or contested, as reports arrive. Totals update live over WebSocket, with no refresh.",
+    body: "Units move from pending to certified or contested as reports arrive, live, with no refresh.",
     link: { label: "Results", to: "/results" },
   },
 ]
@@ -472,8 +468,7 @@ function RunYourOwn() {
   return (
     <section id="run" className="landing-section" aria-labelledby="run-h">
       <SectionHead kicker="For observer groups · five steps" id="run-h" title="Run an observer committee">
-        Everything below happens in this app and is signed by your own wallet. Collate never holds a key, and there is no account to
-        create.
+        Everything is signed by your own wallet. No keys held, no account to create.
       </SectionHead>
       <ol className="run-steps">
         {STEPS.map((s, i) => (
@@ -496,11 +491,11 @@ function RunYourOwn() {
         ))}
       </ol>
       <p className="notice">
-        Each wallet that writes (coordinator and observers) needs a little test GLM on Tiramisu. Fund it at{" "}
+        Every wallet that writes needs a little test GLM from{" "}
         <a href={FAUCET} target="_blank" rel="noreferrer">
           hub.arkiv.network/faucet
         </a>
-        . Viewing results costs nothing and needs no wallet.
+        . Viewing is free.
       </p>
     </section>
   )
@@ -537,10 +532,9 @@ function Engine() {
   return (
     <section id="engine" className="landing-section" aria-labelledby="engine-h">
       <SectionHead kicker="For builders · collate-core" id="engine-h" title="The engine: the read side for Arkiv">
-        Arkiv returns at most 200 entities a page and leaves sorting and totals to the reader, so every app that reads from it
-        solves the same problems. collate-core solves them once, in the browser: paging, trusting writers by $creator, corrections,
-        consensus, totals and live updates. It knows nothing about elections. Collate is one product built on it; Collate Studio
-        is another.
+        Arkiv returns 200 entities a page and leaves totals to the reader, so every app re-solves the same problems. collate-core
+        solves them once, in the browser: paging, trust by $creator, corrections, consensus, totals and live updates. It knows
+        nothing about elections; Collate and Studio are both built on it.
       </SectionHead>
 
       <figure className="engine-diagram">
@@ -548,7 +542,7 @@ function Engine() {
         <div className="engine-node">
           <span className="icon-chip"><Icon name="database" size={16} /></span>
           <b>Arkiv</b>
-          <span className="muted">Entities with typed attributes, a chain-set $creator, 200 per page, WebSocket events</span>
+          <span className="muted">Typed entities, chain-set $creator, 200 per page, live events</span>
         </div>
         <span className="engine-arrow" aria-hidden="true" />
         <div className="engine-node engine-core">
@@ -593,8 +587,8 @@ function Engine() {
               <b>Query-to-Dashboard Studio:</b> Every project here writes entities in — nobody ships the read side.
             </blockquote>
             <p className="small">
-              Collate Studio is that read side: start from any Arkiv query, choose whose writes to trust, and share the live dashboard
-              as a link. No indexer, no backend.
+              Studio is that read side: any Arkiv query, your choice of trusted writers, a live dashboard shared as a link. No
+              indexer, no backend.
             </p>
             <div className="row">
               <a className="btn btn-primary btn-small" href={href("/studio")}>
@@ -611,8 +605,8 @@ function Engine() {
               <b>Multi-Writer Collaborative State</b>
             </blockquote>
             <p className="small">
-              The consensus rule turns many writers into one agreed result. Authorship is checked by $creator, which the chain sets
-              and nobody can change, so a report counts only for the wallet that really wrote it.
+              Consensus turns many writers into one agreed result. Authorship comes from $creator, which the chain sets, so a report
+              counts only for the wallet that wrote it.
             </p>
           </div>
         </div>
@@ -627,13 +621,13 @@ const WHY: { icon: string; title: string; body: string }[] = [
   { icon: "lock", title: "Readonly entities", body: "Once posted, a result cannot be edited by anyone, Collate included." },
   { icon: "shield", title: "$creator from the chain", body: "Trust comes from who created an entity, never from a field anyone can write." },
   { icon: "clock", title: "Permissionless extension", body: "Any viewer can keep results alive past their expiry." },
-  { icon: "eye", title: "Public RPC, no backend", body: "This static page reads Arkiv directly. Take our site down and the data is still there." },
+  { icon: "eye", title: "Public RPC, no backend", body: "This page reads Arkiv directly. Take it down and the data remains." },
   { icon: "map", title: "Typed queries", body: "Range filters and OR over creators run on the node." },
   { icon: "flame", title: "Live entity events", body: "WebSocket events update totals as results land." },
 ]
 
 const OFF: { what: string; why: string; where: string }[] = [
-  { what: "Voter and observer identities", why: "Personal data, and naming observers exposes them to pressure", where: "Nowhere: wallets plus a synthetic alias" },
+  { what: "Voter and observer identities", why: "Personal, and naming observers exposes them to pressure", where: "Nowhere: just a wallet and alias" },
   { what: "Result-sheet photos", why: "Large, and can expose people at the unit", where: "With the observer group; only a SHA-256 hash on Arkiv" },
   { what: "Totals and consensus status", why: "A stored total is one more thing that can be wrong or forged", where: "Recomputed by every viewer" },
   { what: "Keys and secrets", why: "Dangerous", where: "The user's wallet" },
@@ -644,8 +638,8 @@ function WhyArkiv() {
   return (
     <section id="arkiv" className="landing-section" aria-labelledby="arkiv-h">
       <SectionHead kicker="Design" id="arkiv-h" title="Why Arkiv, and what stays off it">
-        Results, accreditations and corrections live on Arkiv, each attributed to the wallet that created it. Anything personal,
-        large or derived does not.
+        Results, accreditations and corrections live on Arkiv, tied to the wallet that wrote them. Anything personal, large or
+        derived stays off.
       </SectionHead>
 
       <div className="why-grid">
