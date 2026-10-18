@@ -8,7 +8,7 @@ The engine underneath, [`@collate/core`](packages/core), knows nothing about ele
 
 Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance**, **Open Source** and **Security**. All results are synthetic: a demo election with fictional parties, polling units and observers (known only by wallet and alias), set in real Nigerian states and LGAs. It is not a real election and its figures reflect no real vote.
 
-- **Live app:** https://collate-silk.vercel.app (static, no login, reads straight from Arkiv): [results](https://collate-silk.vercel.app/#/results) · [Studio](https://collate-silk.vercel.app/#/studio)
+- **Live app:** https://collate-arkiv.vercel.app (static, no login, reads straight from Arkiv): [results](https://collate-arkiv.vercel.app/#/results) · [Studio](https://collate-arkiv.vercel.app/#/studio)
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
 - **Friction report:** [`arkiv/friction.md`](arkiv/friction.md)
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
