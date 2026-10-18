@@ -1,5 +1,5 @@
-import type { AttrValue } from "../types"
-import { formatAttr, humanizeKey } from "./format"
+import type { AttrValue } from "../types.js"
+import { formatAttr, humanizeKey } from "./format.js"
 
 export type AttrListProps = {
   attrs: Record<string, AttrValue>

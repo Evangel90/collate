@@ -1,5 +1,5 @@
 import type { Transport } from "viem"
-import { describeError } from "./errors"
+import { describeError } from "./errors.js"
 
 /**
  * What this tab has spent of Tiramisu's anonymous read budget. Every `arkiv_query` costs a flat

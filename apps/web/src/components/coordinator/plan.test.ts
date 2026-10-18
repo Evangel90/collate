@@ -1,5 +1,5 @@
 import { EntityMutationError } from "@arkiv-network/sdk"
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { describe, expect, it } from "vitest"
 import type { UnitInput } from "../../model/schema"
 import {

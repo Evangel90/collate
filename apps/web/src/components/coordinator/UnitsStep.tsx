@@ -1,4 +1,4 @@
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { useMemo, useState } from "react"
 import type { Wallet } from "../../lib/wallet"
 import { PARTY_FIELDS, type ElectionInput } from "../../model/schema"

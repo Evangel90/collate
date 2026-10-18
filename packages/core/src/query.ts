@@ -1,8 +1,8 @@
 import type { FullEntity, PublicArkivClient } from "@arkiv-network/sdk"
-import { createReadCache, type ReadCache, type ReadSpec } from "./cache"
-import { toRow } from "./rows"
-import type { Row, Where } from "./types"
-import { createdByAny, toExpression } from "./where"
+import { createReadCache, type ReadCache, type ReadSpec } from "./cache.js"
+import { toRow } from "./rows.js"
+import type { Row, Where } from "./types.js"
+import { createdByAny, toExpression } from "./where.js"
 
 /** Arkiv's per-page maximum. */
 export const PAGE_SIZE = 200

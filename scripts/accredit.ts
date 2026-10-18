@@ -8,7 +8,7 @@
  */
 import { createPublicClient, createWalletClient } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
-import { eq, fetchAll, or } from "@collate/core"
+import { eq, fetchAll, or } from "collate-core"
 import { http, isAddress } from "viem"
 import { accreditationEntity } from "../apps/web/src/model/schema"
 import { ELECTION } from "./demo-data"

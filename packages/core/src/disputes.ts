@@ -1,5 +1,5 @@
-import { later } from "./supersede"
-import type { Consensus, Dispute, Row } from "./types"
+import { later } from "./supersede.js"
+import type { Consensus, Dispute, Row } from "./types.js"
 
 /**
  * Committee consensus. Groups rows by `key` and keeps the latest row from each source. Within a

@@ -24,7 +24,7 @@ Source of truth in code: [`apps/web/src/model/schema.ts`](../apps/web/src/model/
 
 Parties are fictional and fixed to three slots (`votes_a`, `votes_b`, `votes_c`); their names live in the election payload.
 
-### Rules the reader applies (in `@collate/core`, client-side)
+### Rules the reader applies (in `collate-core`, client-side)
 
 1. **Trust:** the trusted wallets are the `observer` values of `accreditation` entities created by the coordinator the viewer chose (Q3). Results are fetched only from those creators (Q4/Q8).
    - **Open sandbox** (a third option on the results page, `?group=sandbox`, demo election only): Group A's accredited observers plus every wallet with a `sandbox_registration` for the election (Q10) **whose `$creator` equals its `observer`**. A registration naming any other wallet is ignored, so nobody can register someone else. Registrations come from any wallet, so the sandbox's totals are not vetted, and the page says so. Group A and B never count them.
@@ -43,7 +43,7 @@ Totals by ward, LGA and state; each unit's consensus status (certified, conteste
 
 ## Queries the app runs
 
-Rendered exactly as the SDK sends them (`renderWhere` in `@collate/core`). `$E` = the election id in [`deployment.json`](../apps/web/src/deployment.json), currently `collate-demo-ng` (the demo election: synthetic results, real Nigerian state and LGA names), or the `election` URL parameter.
+Rendered exactly as the SDK sends them (`renderWhere` in `collate-core`). `$E` = the election id in [`deployment.json`](../apps/web/src/deployment.json), currently `collate-demo-ng` (the demo election: synthetic results, real Nigerian state and LGA names), or the `election` URL parameter.
 
 | # | Purpose | Query | Sent to Arkiv? | Code |
 | --- | --- | --- | --- | --- |

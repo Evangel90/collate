@@ -1,5 +1,5 @@
 import type { CreateEntityParameters } from "@arkiv-network/sdk"
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { useCallback, useRef, useState } from "react"
 import { collate } from "../../lib/collate"
 import { errorMessage, type Wallet } from "../../lib/wallet"

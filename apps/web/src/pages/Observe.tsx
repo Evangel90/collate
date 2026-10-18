@@ -1,5 +1,5 @@
-import { eq, type Row } from "@collate/core"
-import { expiresIn } from "@collate/core/ui"
+import { eq, type Row } from "collate-core"
+import { expiresIn } from "collate-core/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { formatEther, isAddress, type Hex } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"

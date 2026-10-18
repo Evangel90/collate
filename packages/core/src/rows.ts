@@ -1,7 +1,7 @@
 import type { AnyArkivValue } from "@arkiv-network/sdk/attr"
 import type { FullEntity } from "@arkiv-network/sdk"
 import type { Address, Hex } from "viem"
-import type { AttrValue, Row } from "./types"
+import type { AttrValue, Row } from "./types.js"
 
 const decoder = new TextDecoder()
 

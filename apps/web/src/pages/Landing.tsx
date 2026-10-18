@@ -1,4 +1,4 @@
-import { describeError } from "@collate/core"
+import { describeError } from "collate-core"
 import { useEffect, useState, type ReactNode } from "react"
 import { CardTitle, Icon } from "../components/ui"
 import { collate, deployment } from "../lib/collate"
@@ -510,7 +510,7 @@ function RunYourOwn() {
 
 const ENGINE_PARTS = ["Pagination past 200", "Trust by $creator", "Corrections", "Consensus", "Aggregation", "Live WebSocket updates"]
 
-const SNIPPET = `import { createCollate, eq } from "@collate/core"
+const SNIPPET = `import { createCollate, eq } from "collate-core"
 
 const collate = createCollate() // Tiramisu, public RPC, no keys
 

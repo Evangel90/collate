@@ -1,4 +1,4 @@
-import type { Panel } from "./types"
+import type { Panel } from "./types.js"
 
 function toBase64Url(text: string): string {
   const bytes = new TextEncoder().encode(text)

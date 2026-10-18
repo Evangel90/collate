@@ -1,4 +1,4 @@
-import type { Row, TypedValue, Where, WhereValue } from "./types"
+import type { Row, TypedValue, Where, WhereValue } from "./types.js"
 
 /**
  * One read, in a form that can be compared: AND-ed predicates, an optional creator set (lowercase,

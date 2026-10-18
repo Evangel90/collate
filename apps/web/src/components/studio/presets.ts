@@ -3,7 +3,7 @@
  * teams' public entities on Tiramisu, found by querying Arkiv, to show the engine is not about
  * elections. Nobody was asked: Arkiv data is public, and reading it needs no permission.
  */
-import { eq } from "@collate/core"
+import { eq } from "collate-core"
 import { deployment } from "../../lib/collate"
 import { resultsPanel, unitsPanel } from "../../model/panels"
 import { normalize, type StudioPanel } from "./model"

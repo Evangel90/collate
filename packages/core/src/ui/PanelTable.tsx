@@ -1,5 +1,5 @@
-import type { AggRow, Row } from "../types"
-import { formatNumber } from "./format"
+import type { AggRow, Row } from "../types.js"
+import { formatNumber } from "./format.js"
 
 export type Column = { field: string; label: string }
 

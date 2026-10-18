@@ -1,11 +1,11 @@
 /**
- * Replays the demo dataset offline through @collate/core's computePanel, with no Arkiv reads: the
+ * Replays the demo dataset offline through collate-core's computePanel, with no Arkiv reads: the
  * rows the seed would write, in the order it writes them, trust-filtered for each observer group.
  * Shows what the results page should show after a fresh seed, at quorum 1 and 2.
  *
  *   npm run replay
  */
-import { computePanel, type Consensus, type Row } from "@collate/core"
+import { computePanel, type Consensus, type Row } from "collate-core"
 import type { Hex } from "viem"
 import deployment from "../apps/web/src/deployment.json" with { type: "json" }
 import { resultsPanel } from "../apps/web/src/model/panels"

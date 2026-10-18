@@ -16,7 +16,7 @@ import {
   type CreateEntityParameters,
 } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
-import { eq, fetchAll, type Row } from "@collate/core"
+import { eq, fetchAll, type Row } from "collate-core"
 import { formatEther, http, parseEther, type Hex, type PrivateKeyAccount } from "viem"
 import { accreditationEntity, correctionEntity, electionEntity, resultEntity, unitEntity } from "../apps/web/src/model/schema"
 import {

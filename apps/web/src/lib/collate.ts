@@ -1,4 +1,4 @@
-import { createCollate } from "@collate/core"
+import { createCollate } from "collate-core"
 import deploymentJson from "../deployment.json"
 
 export type Coordinator = { id: string; name: string; address: string; observers: string[] }

@@ -1,5 +1,5 @@
-import { decodePanel, encodePanel, type Row } from "@collate/core"
-import { usePanel } from "@collate/core/ui"
+import { decodePanel, encodePanel, type Row } from "collate-core"
+import { usePanel } from "collate-core/ui"
 import { useState, type Ref } from "react"
 import { collate } from "../../lib/collate"
 import { CardTitle, Icon } from "../ui"

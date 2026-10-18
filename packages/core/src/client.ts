@@ -1,9 +1,9 @@
 import { createPublicClient, type PublicArkivClient } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
 import { http, webSocket, type Chain, type Transport } from "viem"
-import { meter, type ReadBudget } from "./budget"
-import { createReadCache, type KeyValueStore, type ReadCache } from "./cache"
-import { DEFAULT_CACHE_TTL, setReadCache } from "./query"
+import { meter, type ReadBudget } from "./budget.js"
+import { createReadCache, type KeyValueStore, type ReadCache } from "./cache.js"
+import { DEFAULT_CACHE_TTL, setReadCache } from "./query.js"
 
 export const TIRAMISU = {
   chain: tiramisu,

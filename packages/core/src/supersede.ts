@@ -1,4 +1,4 @@
-import type { Row, SupersedeLink } from "./types"
+import type { Row, SupersedeLink } from "./types.js"
 
 /**
  * Applies replacements: a row whose `field` names the key of an earlier row by the same creator

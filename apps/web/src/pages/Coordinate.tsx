@@ -1,4 +1,4 @@
-import { describeError, eq, or, type Row, type Where } from "@collate/core"
+import { describeError, eq, or, type Row, type Where } from "collate-core"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ElectionList } from "../components/coordinator/ElectionList"
 import { newDraft, Workspace } from "../components/coordinator/Workspace"

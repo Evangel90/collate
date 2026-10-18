@@ -1,5 +1,5 @@
-import { field, num } from "./rows"
-import type { AggRow, Row } from "./types"
+import { field, num } from "./rows.js"
+import type { AggRow, Row } from "./types.js"
 
 export type AggregateOptions = {
   groupBy?: string

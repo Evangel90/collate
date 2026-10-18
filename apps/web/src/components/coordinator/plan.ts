@@ -4,7 +4,7 @@
  * reads or writes Arkiv, so all of it is unit-tested in plan.test.ts.
  */
 import { EntityMutationError } from "@arkiv-network/sdk"
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { isAddress } from "viem"
 import type { UnitInput } from "../../model/schema"
 

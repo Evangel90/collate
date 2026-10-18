@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatAttr, humanizeKey } from "./format"
+import { formatAttr, humanizeKey } from "./format.js"
 
 describe("humanizeKey", () => {
   it("turns attribute names into words", () => {

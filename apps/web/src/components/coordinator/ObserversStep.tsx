@@ -1,6 +1,6 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
-import type { Row } from "@collate/core"
-import { expiresIn } from "@collate/core/ui"
+import type { Row } from "collate-core"
+import { expiresIn } from "collate-core/ui"
 import { useMemo, useState } from "react"
 import { collate, nameOf } from "../../lib/collate"
 import { errorMessage, type Wallet } from "../../lib/wallet"

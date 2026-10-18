@@ -3,7 +3,7 @@
  * stays the contract: the form is one way to write it, the JSON editor is another, and anything the
  * form cannot show (nested and/or groups) is kept verbatim rather than dropped.
  */
-import { createdByAny, eq, or, renderWhere, v, type Panel, type PanelState, type SelfRegistration, type TypedValue, type Where, type WhereValue } from "@collate/core"
+import { createdByAny, eq, or, renderWhere, v, type Panel, type PanelState, type SelfRegistration, type TypedValue, type Where, type WhereValue } from "collate-core"
 
 /** `quorum` lands in core's Panel type in a parallel change; until then it rides along untyped. */
 export type StudioPanel = Panel & { quorum?: number }

@@ -1,5 +1,5 @@
-import type { AggRow } from "@collate/core"
-import { BarChart, type Series } from "@collate/core/ui"
+import type { AggRow } from "collate-core"
+import { BarChart, type Series } from "collate-core/ui"
 import { useEffect, useRef, useState } from "react"
 
 /** Tracks an element's content width; 0 until the first measurement. */

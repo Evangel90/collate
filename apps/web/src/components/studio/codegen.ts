@@ -1,5 +1,5 @@
 /** Turns a panel config into code a developer can paste: plain TypeScript and a React component. */
-import type { Where, WhereValue } from "@collate/core"
+import type { Where, WhereValue } from "collate-core"
 import type { StudioPanel } from "./model"
 
 const IDENT = /^[A-Za-z_$][\w$]*$/
@@ -83,10 +83,10 @@ function importLine(panel: StudioPanel, withPanelType: boolean): string {
   helpersIn(panel.query, used)
   if (panel.trust) helpersIn(panel.trust.listQuery, used)
   const names = [...used].sort((a, b) => a.localeCompare(b))
-  return `import { ${withPanelType ? "type Panel, " : ""}${names.join(", ")} } from "@collate/core"`
+  return `import { ${withPanelType ? "type Panel, " : ""}${names.join(", ")} } from "collate-core"`
 }
 
-const INSTALL = "// npm install @collate/core @arkiv-network/sdk@0.8.1 viem   (source: packages/core in github.com/Evangel90/collate, MIT)"
+const INSTALL = "// npm install collate-core @arkiv-network/sdk@0.8.1 viem   (source: packages/core in github.com/Evangel90/collate, MIT)"
 
 /** Framework-free: subscribe to the panel and render however you like. */
 export function tsSnippet(panel: StudioPanel): string {
@@ -107,7 +107,7 @@ const stop = panel.subscribe((state) => {
 `
 }
 
-/** React, with the optional UI components from @collate/core/ui. */
+/** React, with the optional UI components from collate-core/ui. */
 export function reactSnippet(panel: StudioPanel): string {
   const sum = panel.sum ?? []
   const label = (f: string) => panel.labels?.[f] ?? f
@@ -128,7 +128,7 @@ export function reactSnippet(panel: StudioPanel): string {
   const ui = panel.groupBy ? (panel.view === "bar" ? "BarChart" : "GroupTable") : "RowTable"
   return `${INSTALL}
 ${importLine(panel, true)}
-import { ${ui}, collateCss, usePanel } from "@collate/core/ui"
+import { ${ui}, collateCss, usePanel } from "collate-core/ui"
 
 const collate = createCollate()
 

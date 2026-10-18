@@ -1,4 +1,4 @@
-import { describeError, encodePanel, type Panel, type Row } from "@collate/core"
+import { describeError, encodePanel, type Panel, type Row } from "collate-core"
 import { useEffect, useState } from "react"
 import { setupQuery } from "../model/panels"
 import type { Party } from "../model/schema"

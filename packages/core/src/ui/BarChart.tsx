@@ -1,6 +1,6 @@
 import { useState } from "react"
-import type { AggRow } from "../types"
-import { formatNumber } from "./format"
+import type { AggRow } from "../types.js"
+import { formatNumber } from "./format.js"
 
 export type Series = { field: string; label: string }
 

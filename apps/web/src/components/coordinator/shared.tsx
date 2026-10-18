@@ -1,4 +1,4 @@
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { useEffect, useState } from "react"
 import { collate } from "../../lib/collate"
 import { DEFAULT_PARTIES } from "../../lib/data"

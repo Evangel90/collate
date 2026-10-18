@@ -1,4 +1,4 @@
-import { usePanel } from "@collate/core/ui"
+import { usePanel } from "collate-core/ui"
 import { useMemo } from "react"
 import { collate } from "../../lib/collate"
 import { href } from "../../lib/router"

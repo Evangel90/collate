@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react"
-import type { Explorer } from "../client"
-import type { Row } from "../types"
-import { expiresIn, shortAddress } from "./format"
+import type { Explorer } from "../client.js"
+import type { Row } from "../types.js"
+import { expiresIn, shortAddress } from "./format.js"
 
 export type ProvenanceProps = {
   title: string

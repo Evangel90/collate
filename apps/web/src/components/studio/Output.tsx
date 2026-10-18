@@ -1,5 +1,5 @@
-import { renderWhere, type PanelHandle, type PanelState, type Row } from "@collate/core"
-import { BarChart, GroupTable, RowTable, formatNumber, shortAddress } from "@collate/core/ui"
+import { renderWhere, type PanelHandle, type PanelState, type Row } from "collate-core"
+import { BarChart, GroupTable, RowTable, formatNumber, shortAddress } from "collate-core/ui"
 import { useState, type Ref } from "react"
 import { nameOf } from "../../lib/collate"
 import { CardTitle, Icon, Skeleton } from "../ui"

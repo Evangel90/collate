@@ -1,5 +1,5 @@
-import { decodePanel, encodePanel, renderWhere, type Row } from "@collate/core"
-import { AttrList, Provenance, usePanel } from "@collate/core/ui"
+import { decodePanel, encodePanel, renderWhere, type Row } from "collate-core"
+import { AttrList, Provenance, usePanel } from "collate-core/ui"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Builder } from "../components/studio/Builder"
 import { Dashboard, MAX_PINNED, decodeDashboard, encodeDashboard } from "../components/studio/Dashboard"

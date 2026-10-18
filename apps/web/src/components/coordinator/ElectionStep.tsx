@@ -1,5 +1,5 @@
-import type { Row } from "@collate/core"
-import { expiresIn } from "@collate/core/ui"
+import type { Row } from "collate-core"
+import { expiresIn } from "collate-core/ui"
 import { useState } from "react"
 import { collate } from "../../lib/collate"
 import { PARTY_FIELDS } from "../../model/schema"

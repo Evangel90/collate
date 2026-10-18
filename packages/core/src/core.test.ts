@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest"
 import type { Address, Hex } from "viem"
-import { aggregate } from "./aggregate"
-import { findConsensus, findDisputes } from "./disputes"
-import { computePanel } from "./panel"
-import { decodePanel, encodePanel } from "./share"
-import { supersede } from "./supersede"
-import { buildTrust, partitionByTrust } from "./trust"
-import type { Panel, Row } from "./types"
-import { createdByAny, eq, gt, or, renderWhere, v } from "./where"
+import { aggregate } from "./aggregate.js"
+import { findConsensus, findDisputes } from "./disputes.js"
+import { computePanel } from "./panel.js"
+import { decodePanel, encodePanel } from "./share.js"
+import { supersede } from "./supersede.js"
+import { buildTrust, partitionByTrust } from "./trust.js"
+import type { Panel, Row } from "./types.js"
+import { createdByAny, eq, gt, or, renderWhere, v } from "./where.js"
 
 const A = "0x00000000000000000000000000000000000000aa" as Address
 const B = "0x00000000000000000000000000000000000000bb" as Address
@@ -371,7 +371,7 @@ describe("share", () => {
 
 describe("describeError", () => {
   it("turns a wrapped HTTP 429 into a retry hint", async () => {
-    const { describeError } = await import("./errors")
+    const { describeError } = await import("./errors.js")
     const http = { status: 429, headers: new Headers({ "retry-after": "883" }), message: "HTTP request failed." }
     const wrapped = { message: "outer", cause: http }
     expect(describeError(wrapped)).toEqual({

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import type { Collate } from "../index"
-import type { PanelHandle } from "../panel"
-import type { Panel, PanelState } from "../types"
+import type { Collate } from "../index.js"
+import type { PanelHandle } from "../panel.js"
+import type { Panel, PanelState } from "../types.js"
 
 /**
  * Creates a live panel for `config` and re-renders on every change. A new config (compared by its

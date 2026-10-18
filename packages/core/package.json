@@ -1,8 +1,22 @@
 {
-  "name": "@collate/core",
+  "name": "collate-core",
   "version": "0.1.0",
   "description": "Turn any Arkiv query into live, trust-filtered tables and charts in the browser. No indexer, no backend.",
+  "author": "Evangel90",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Evangel90/collate.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/Evangel90/collate/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/Evangel90/collate/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,12 +36,17 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "arkiv",
+    "arkiv-network",
     "dashboard",
     "query",
+    "trust",
+    "consensus",
+    "live",
     "web3",
     "database"
   ],

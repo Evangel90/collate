@@ -1,4 +1,4 @@
-import type { PanelHandle, PanelState, Row } from "@collate/core"
+import type { PanelHandle, PanelState, Row } from "collate-core"
 import type { Ref } from "react"
 import { Icon } from "../ui"
 import type { StudioPanel } from "./model"

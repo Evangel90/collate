@@ -1,7 +1,7 @@
 import { addr, bool, i32, key, str, u64, type ArkivValue } from "@arkiv-network/sdk/attr"
 import * as q from "@arkiv-network/sdk/query"
 import type { Hex } from "viem"
-import type { TypedValue, Where, WhereValue } from "./types"
+import type { TypedValue, Where, WhereValue } from "./types.js"
 
 type Comparable = "eq" | "gt" | "gte" | "lt" | "lte"
 

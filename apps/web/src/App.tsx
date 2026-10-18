@@ -1,4 +1,4 @@
-import { collateCss } from "@collate/core/ui"
+import { collateCss } from "collate-core/ui"
 import { useEffect } from "react"
 import { BudgetNotice, QueryBadge } from "./components/Budget"
 import { ThemeToggle } from "./components/ThemeToggle"

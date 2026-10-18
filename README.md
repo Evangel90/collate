@@ -4,7 +4,7 @@
 
 Collate is a public, tamper-evident election results board for low-trust elections, built on [Arkiv](https://arkiv.network), the Web3 database. A committee of fairly trusted observers posts polling-unit results as Arkiv entities; a unit's result counts only when a majority of the committee members who reported agree. Anyone can watch totals by ward, LGA and state update live, straight from Arkiv, with no Collate server in the path.
 
-The engine underneath, [`@collate/core`](packages/core), knows nothing about elections. **Collate Studio** uses it to turn any Arkiv query, including other projects' data, into a live, trust-filtered, shareable dashboard.
+The engine underneath, [`collate-core`](packages/core), knows nothing about elections. **Collate Studio** uses it to turn any Arkiv query, including other projects' data, into a live, trust-filtered, shareable dashboard.
 
 Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Resistance**, **Open Source** and **Security**. All results are synthetic: a demo election with fictional parties, polling units and observers (known only by wallet and alias), set in real Nigerian states and LGAs. It is not a real election and its figures reflect no real vote.
 
@@ -12,13 +12,13 @@ Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Re
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
 - **Friction report:** [`arkiv/friction.md`](arkiv/friction.md)
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
-- **Engine:** [`packages/core`](packages/core) (`@collate/core`)
+- **Engine:** [`packages/core`](packages/core) (`collate-core`)
 
 ## Three ways in
 
 - **For the public: watch and verify the count.** Pick which observer group you trust, follow totals by state, LGA and ward live, see which units are certified, contested or pending, and open any number to find the wallet that posted it. No wallet or login needed.
 - **For observer groups: run a committee.** Create an election and its polling units, accredit your observers' wallets and share one link. Observers post from their own wallets; mistakes become public corrections, never silent edits.
-- **For builders: turn any Arkiv data into a live dashboard.** Collate Studio works on any project's entities, not just elections, and the same engine, `@collate/core`, drops into your own app.
+- **For builders: turn any Arkiv data into a live dashboard.** Collate Studio works on any project's entities, not just elections, and the same engine, `collate-core`, drops into your own app.
 
 What makes it different: no single party, including us, can edit, hide or switch off what observers reported. Results are readonly on Arkiv, a unit counts only when the observers who reported it agree, and every viewer recomputes the totals from Arkiv in their own browser.
 
@@ -41,7 +41,7 @@ Arkiv's [ecosystem page](https://hub.arkiv.network/ecosystem) lists gaps across 
 - Build a panel with a form (filters, ranges, `$creator`, trust list, group-by, sums, consensus and quorum) or as JSON. Studio shows the exact Arkiv query it runs.
 - Results update live over WebSocket entity events and page past Arkiv's 200-entity limit at one pinned block.
 - Every panel is a link. Pin up to six panels to a dashboard that is also one link.
-- "Use in your app" generates the TypeScript or React code for the current panel with `@collate/core`.
+- "Use in your app" generates the TypeScript or React code for the current panel with `collate-core`.
 - Presets include **other teams' public data, read without asking**: Asli's drug-batch provenance entities (with a cloned batch from an unregistered wallet flagged and then ignored by a trust list) and haqclock's right-to-information cases.
 
 The same consensus rule also speaks to the "Multi-Writer Collaborative State" gap on that page: many single-owner entities from different wallets resolve to one agreed result, with authorship checked against `$creator`.
@@ -62,7 +62,7 @@ The same consensus rule also speaks to the "Multi-Writer Collaborative State" ga
 
 ```
 collate/
-├── packages/core/     @collate/core: live, trust-filtered Arkiv panels (+ optional React UI)
+├── packages/core/     collate-core: live, trust-filtered Arkiv panels (+ optional React UI)
 ├── apps/web/          Collate: landing, results, observer, coordinator and Studio pages
 ├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals), replay.ts (offline)
 ├── arkiv/             schema.md, friction.md, seed-transactions.md
@@ -142,7 +142,7 @@ All are fresh testnet wallets created for this project and hold no real funds.
 
 1 election, `collate-demo-ng` ("Collate demo election (synthetic results, real Nigerian geography)"), 2 observer groups, 12 seeded observers (plus Observer 13, accredited by Group A later with `npm run accredit` for live testing), 72 polling units across 6 states (Lagos, Kano, Rivers, FCT, Enugu, Oyo), 12 LGAs (two per state, e.g. Ikeja and Surulere in Lagos) and 24 numbered wards, 3 fictional parties (Unity Party, Progress Alliance, Green Coalition). **Only the state and LGA names are real.** Every result, party, observer, ward and polling unit is synthetic: wards are numbered ("Ikeja Ward 03"), units are generic ("Unit 002, Civic Centre", code `LA-IKJ-03-002`), and the election's description says so.
 
-Group A's observers cover every unit; Group B's own observers count Rivers, FCT and Enugu a second time. Deliberate cases: in Group A's view, `LA-IKJ-03-002` certified 2 to 1 with Observer 04 the outlier and `KN-NAS-09-002` contested (1 against 1); `FC-AMC-10-002` contested in Group B's view; six second counts that agree with the first observer, so at quorum 2 Group A still certifies six units; one correction (`KN-FAG-06-003`); one unit left for the live demo (`OY-OGN-07-003`, Observer 08's); and one inflated result for `LA-IKJ-03-001` from an unaccredited wallet. Results are timestamped across the 12 hours before seeding. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts); `npm run replay` runs it through `@collate/core` offline, with no Arkiv reads:
+Group A's observers cover every unit; Group B's own observers count Rivers, FCT and Enugu a second time. Deliberate cases: in Group A's view, `LA-IKJ-03-002` certified 2 to 1 with Observer 04 the outlier and `KN-NAS-09-002` contested (1 against 1); `FC-AMC-10-002` contested in Group B's view; six second counts that agree with the first observer, so at quorum 2 Group A still certifies six units; one correction (`KN-FAG-06-003`); one unit left for the live demo (`OY-OGN-07-003`, Observer 08's); and one inflated result for `LA-IKJ-03-001` from an unaccredited wallet. Results are timestamped across the 12 hours before seeding. Generated deterministically by [`scripts/demo-data.ts`](scripts/demo-data.ts); `npm run replay` runs it through `collate-core` offline, with no Arkiv reads:
 
 | View | Certified | Contested | Pending |
 | --- | --- | --- | --- |

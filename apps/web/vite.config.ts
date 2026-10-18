@@ -10,8 +10,8 @@ export default defineConfig({
   base: "./",
   resolve: {
     alias: [
-      { find: /^@collate\/core\/ui$/, replacement: core("ui/index.ts") },
-      { find: /^@collate\/core$/, replacement: core("index.ts") },
+      { find: /^collate-core\/ui$/, replacement: core("ui/index.ts") },
+      { find: /^collate-core$/, replacement: core("index.ts") },
     ],
   },
   build: {

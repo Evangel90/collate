@@ -1,4 +1,4 @@
-import { buildTrust, decodePanel, encodePanel, type Row } from "@collate/core"
+import { buildTrust, decodePanel, encodePanel, type Row } from "collate-core"
 import type { Address, Hex } from "viem"
 import { describe, expect, it } from "vitest"
 import { normalize } from "../components/studio/model"

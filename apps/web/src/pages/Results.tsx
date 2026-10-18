@@ -1,6 +1,6 @@
 import { ExpirationTime } from "@arkiv-network/sdk"
-import { computePanel, renderWhere, type AggRow, type Consensus, type PanelState, type Row } from "@collate/core"
-import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "@collate/core/ui"
+import { computePanel, renderWhere, type AggRow, type Consensus, type PanelState, type Row } from "collate-core"
+import { BarChart, GroupTable, Provenance, RowTable, formatNumber, usePanel } from "collate-core/ui"
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { isAddress } from "viem"
 import { useRateLimited } from "../components/Budget"

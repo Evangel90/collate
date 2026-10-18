@@ -1,4 +1,4 @@
-import type { Row } from "@collate/core"
+import type { Row } from "collate-core"
 import { useMemo, useState } from "react"
 import { href } from "../../lib/router"
 import { useRateLimited } from "../Budget"

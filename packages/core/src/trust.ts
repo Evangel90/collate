@@ -1,7 +1,7 @@
 import type { PublicArkivClient } from "@arkiv-network/sdk"
 import type { Address } from "viem"
-import { fetchAll } from "./query"
-import type { Row, SelfRegistration, TrustConfig, TrustMember, TrustSet } from "./types"
+import { fetchAll } from "./query.js"
+import type { Row, SelfRegistration, TrustConfig, TrustMember, TrustSet } from "./types.js"
 
 const ADDRESS = /^0x[0-9a-f]{40}$/
 

@@ -6,12 +6,12 @@
 import { ENTITY_EVENTS_ABI, type PublicArkivClient } from "@arkiv-network/sdk"
 import { custom, encodeAbiParameters, encodeEventTopics, numberToHex, stringToHex, type Address, type Hex } from "viem"
 import { describe, expect, it } from "vitest"
-import { covers, type KeyValueStore, type ReadSpec } from "./cache"
-import { createClients, type Clients, type CollateOptions } from "./client"
-import { createPanel, type PanelHandle } from "./panel"
-import { fetchAll } from "./query"
-import type { Panel, PanelState, Row, Where } from "./types"
-import { eq, gt, or, v } from "./where"
+import { covers, type KeyValueStore, type ReadSpec } from "./cache.js"
+import { createClients, type Clients, type CollateOptions } from "./client.js"
+import { createPanel, type PanelHandle } from "./panel.js"
+import { fetchAll } from "./query.js"
+import type { Panel, PanelState, Row, Where } from "./types.js"
+import { eq, gt, or, v } from "./where.js"
 
 type Attr = string | number
 type Ent = { key: Hex; creator: Address; createdAt: bigint; attrs: Record<string, Attr>; payload?: unknown }

@@ -1,4 +1,4 @@
-# @collate/core
+# collate-core
 
 **Turn any Arkiv query into live, trust-filtered tables and charts in the browser. No indexer, no backend.**
 
@@ -15,12 +15,14 @@ Arkiv, the Web3 database, has no server-side ordering or aggregation and returns
 | `share` | Encodes a whole panel config into a URL and back | — |
 | `ui` | Optional React: `usePanel`, `BarChart`, `GroupTable`, `RowTable`, `Provenance`, `AttrList` (an entity's attributes as a labelled grid: dates for timestamps, grouped digits, short addresses) | `$creator`, entity key, Entity Expiration |
 
-It knows nothing about elections. [Collate](../../README.md) is its first user.
+It knows nothing about elections. [Collate](https://github.com/Evangel90/collate#readme) is its first user.
+
+See it running, with no backend: [Collate](https://collate-arkiv.vercel.app), an election-results board for low-trust elections, and [Collate Studio](https://collate-arkiv.vercel.app/#/studio), live dashboards from any Arkiv query (including other projects' data) with a "Use in your app" button that generates collate-core code for the panel on screen.
 
 ## Install
 
 ```bash
-npm install @collate/core @arkiv-network/sdk@0.8.1 viem
+npm install collate-core @arkiv-network/sdk@0.8.1 viem
 ```
 
 Works against `@arkiv-network/sdk` 0.8.1 on Tiramisu by default; pass `chain`, `rpcHttp`, `rpcWs` and `explorer` for another Arkiv network.
@@ -28,7 +30,7 @@ Works against `@arkiv-network/sdk` 0.8.1 on Tiramisu by default; pass `chain`, `
 ## Use
 
 ```ts
-import { createCollate, eq, or } from "@collate/core"
+import { createCollate, eq, or } from "collate-core"
 
 const collate = createCollate() // Tiramisu, public RPC, no keys
 
@@ -58,7 +60,7 @@ const stop = panel.subscribe((state) => {
 With React:
 
 ```tsx
-import { BarChart, collateCss, usePanel } from "@collate/core/ui"
+import { BarChart, collateCss, usePanel } from "collate-core/ui"
 
 function Totals() {
   const { state } = usePanel(collate, config)
@@ -156,7 +158,7 @@ type Consensus = {
 Everything after the fetch is pure and unit-tested, so you can use it on rows from anywhere:
 
 ```ts
-import { aggregate, buildTrust, computePanel, findConsensus, supersede } from "@collate/core"
+import { aggregate, buildTrust, computePanel, findConsensus, supersede } from "collate-core"
 
 const { resolved, consensus, disputes } = findConsensus(rows, "unit_code", ["votes_a", "votes_b"], 2)
 ```

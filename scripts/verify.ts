@@ -1,13 +1,13 @@
 /**
  * Reproduces Collate's totals from Arkiv with no web app and no Collate code in the trust path
- * beyond @collate/core's pure functions. Prints the exact queries it runs: two, since Tiramisu meters
+ * beyond collate-core's pure functions. Prints the exact queries it runs: two, since Tiramisu meters
  * every query (Q3 for the trusted observers, then Q4′ for every result, split by trust in memory).
  *
  *   npm run verify                         # Observer Group A
  *   npm run verify -- --coordinator 0x…    # any coordinator wallet
  *   npm run verify -- --quorum 2           # require 2 agreeing observers per unit (default 1)
  */
-import { computePanel, createCollate, partitionByTrust, renderWhere, type Consensus, type Row } from "@collate/core"
+import { computePanel, createCollate, partitionByTrust, renderWhere, type Consensus, type Row } from "collate-core"
 import deployment from "../apps/web/src/deployment.json" with { type: "json" }
 import { resultsPanel } from "../apps/web/src/model/panels"
 
