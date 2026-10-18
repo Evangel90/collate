@@ -1,295 +1,165 @@
-import { ExpirationTime } from "@arkiv-network/sdk"
-import type { Row } from "@collate/core"
-import { expiresIn, usePanel } from "@collate/core/ui"
+import { describeError, eq, or, type Row, type Where } from "@collate/core"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { isAddress } from "viem"
-import { collate, deployment, nameOf } from "../lib/collate"
-import { CardTitle, Skeleton } from "../components/ui"
-import { DEFAULT_PARTIES } from "../lib/data"
-import { href } from "../lib/router"
-import { errorMessage, useWallet, type Wallet } from "../lib/wallet"
-import { resultsPanel, setupQuery } from "../model/panels"
-import { accreditationEntity, electionEntity, unitEntity, type UnitInput } from "../model/schema"
+import { ElectionList } from "../components/coordinator/ElectionList"
+import { newDraft, Workspace } from "../components/coordinator/Workspace"
+import { shortAddress, type Status, type StepId, STEP_IDS } from "../components/coordinator/shared"
+import type { Draft } from "../components/coordinator/plan"
+import { CardTitle } from "../components/ui"
+import { collate, nameOf } from "../lib/collate"
+import { useRoute } from "../lib/router"
+import { useWallet, type Wallet } from "../lib/wallet"
+import { setupQuery } from "../model/panels"
+import "../coordinator.css"
 
-const LEASE_DAYS = 7
-const BLOCKS_PER_DAY = 43_200n
-
-type Status = { kind: "busy" | "error" | "done"; text: string; link?: string } | undefined
+/**
+ * Everything this wallet set up, for every election, in one query: elections, units and
+ * accreditations. The list and its counts come from it, and opening an election costs nothing
+ * more: the session cache answers `setupQuery(election)` for this creator from these rows.
+ */
+const MINE: Where[] = [or(eq("type", "election"), eq("type", "unit"), eq("type", "accreditation"))]
 
 export function Coordinate() {
-  const { wallet, connect, error } = useWallet()
-  const [election, setElection] = useState(deployment.election)
+  const { wallet, connect, error, hasProvider } = useWallet()
 
   return (
-    <div className="grid">
+    <div className="grid coord">
       <section className="hero">
         <h1>Coordinator console</h1>
         <p>
-          For observer groups. Register an election and its polling units, accredit observer wallets, and revoke them. Viewers who
-          trust your group count only results created by wallets you accredited.
+          For observer groups. Register an election and its polling units, accredit the wallets of your observers, then share one
+          link. Viewers who trust your group count only results posted by wallets you accredited.
         </p>
       </section>
-      {!wallet ? (
-        <section className="card">
-          <CardTitle icon="lock">Connect your coordinator wallet</CardTitle>
-          <div className="row">
-            <button type="button" className="btn btn-primary" onClick={() => void connect()}>
-              Connect wallet
-            </button>
-          </div>
-          {error && <p className="notice notice-error">{error}</p>}
-        </section>
-      ) : (
-        <>
-          <section className="card">
-            <div className="card-head">
-              <CardTitle icon="database">Election</CardTitle>
-              <label className="field" style={{ minWidth: 220 }}>
-                <span className="sr-only">Election id</span>
-                <input value={election} onChange={(e) => setElection(e.target.value.trim())} aria-label="Election id" />
-              </label>
-            </div>
-            <p className="small">
-              Signed in as <span className="mono">{wallet.address}</span>
-              {nameOf(wallet.address) ? ` (${nameOf(wallet.address)})` : ""}
-            </p>
-          </section>
-          <Console wallet={wallet} election={election} />
-        </>
-      )}
+      {!wallet ? <Connect connect={connect} error={error} hasProvider={hasProvider} /> : <Console wallet={wallet} />}
     </div>
   )
 }
 
-function Console({ wallet, election }: { wallet: Wallet; election: string }) {
-  const [electionRow, setElectionRow] = useState<Row | null | undefined>()
-  const [accreditations, setAccreditations] = useState<Row[]>([])
-  const [units, setUnits] = useState<Row[]>([])
-  const [block, setBlock] = useState<bigint | undefined>()
-
-  /**
-   * The election, its units and the accreditations in one query (Tiramisu prices each query the
-   * same); the results panel below resolves its trust list from it too. `fresh` after a write.
-   */
-  const load = useCallback(
-    async (fresh = false) => {
-      const { rows, block } = await collate.fetchAll({ where: setupQuery(election), creators: [wallet.address], payload: true, fresh })
-      setElectionRow(rows.find((r) => r.attrs.type === "election") ?? null)
-      setAccreditations(rows.filter((r) => r.attrs.type === "accreditation"))
-      setUnits(rows.filter((r) => r.attrs.type === "unit"))
-      setBlock(block)
-    },
-    [wallet.address, election],
+function Connect({ connect, error, hasProvider }: { connect: () => Promise<void>; error?: string; hasProvider: boolean }) {
+  return (
+    <section className="card coord-connect">
+      <CardTitle icon="lock">Connect your coordinator wallet</CardTitle>
+      <p className="small">
+        The coordinator is the wallet an observer group trusts. It creates the election and its polling units, and accredits the
+        observers whose results count. Everything it writes is public and signed by it, so viewers can check who set the election up.
+      </p>
+      <ol className="coord-howto">
+        <li>Use a browser wallet such as MetaMask or Rabby. Collate asks it to switch to the Arkiv Tiramisu testnet (chain 7738577).</li>
+        <li>
+          Get free test GLM for gas from the{" "}
+          <a href="https://hub.arkiv.network/faucet" target="_blank" rel="noreferrer">
+            Arkiv faucet ↗
+          </a>
+          . Creating an election with a few dozen units costs well under 0.01 GLM.
+        </li>
+        <li>Use a fresh testnet wallet. Everything here is synthetic test data, never a real election.</li>
+      </ol>
+      <div className="row">
+        <button type="button" className="btn btn-primary" onClick={() => void connect()}>
+          Connect wallet
+        </button>
+        {!hasProvider && <span className="muted">No browser wallet detected.</span>}
+      </div>
+      {error && <p className="notice notice-error">{error}</p>}
+    </section>
   )
-  const reload = useCallback(() => void load(true), [load])
+}
+
+export type Mine = {
+  rows: Row[] | undefined
+  block: bigint | undefined
+  error: string | undefined
+  /** Re-reads one election straight from Arkiv (one query) and merges it in; returns its rows. */
+  refresh: (election: string) => Promise<Row[]>
+}
+
+function useMine(address: string): Mine {
+  const [rows, setRows] = useState<Row[] | undefined>()
+  const [block, setBlock] = useState<bigint | undefined>()
+  const [error, setError] = useState<string | undefined>()
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    void load()
-  }, [load])
+    let cancelled = false
+    let retry: ReturnType<typeof setTimeout> | undefined
+    setError(undefined)
+    collate
+      .fetchAll({ where: MINE, creators: [address], payload: true })
+      .then((res) => {
+        if (cancelled) return
+        setRows(res.rows)
+        setBlock(res.block)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        const { message, retryAfterSeconds } = describeError(e)
+        setError(message)
+        // A spent read budget says when it resets: try once more then.
+        if (retryAfterSeconds) retry = setTimeout(() => setAttempt((n) => n + 1), retryAfterSeconds * 1000)
+      })
+    return () => {
+      cancelled = true
+      clearTimeout(retry)
+    }
+  }, [address, attempt])
 
-  if (electionRow === undefined) return <section className="card"><Skeleton lines={3} /></section>
-  if (electionRow === null) return <CreateElection wallet={wallet} election={election} onCreated={reload} />
+  // A different account starts from nothing rather than showing the last one's elections.
+  useEffect(() => setRows(undefined), [address])
 
-  const closesAt = Number(electionRow.attrs.closes_at ?? 0)
+  const refresh = useCallback(
+    async (election: string) => {
+      const res = await collate.fetchAll({ where: setupQuery(election), creators: [address], payload: true, fresh: true })
+      setRows((prev) => [...(prev ?? []).filter((r) => r.attrs.election !== election), ...res.rows])
+      setBlock((b) => (b === undefined || res.block > b ? res.block : b))
+      return res.rows
+    },
+    [address],
+  )
+
+  return { rows, block, error, refresh }
+}
+
+function Console({ wallet }: { wallet: Wallet }) {
+  const { params } = useRoute()
+  const mine = useMine(wallet.address)
+  const [draft, setDraft] = useState<Draft>(newDraft)
+  const [flash, setFlash] = useState<{ election: string; status: Status }>()
+  const election = params.get("election")?.trim() || undefined
+  const isNew = params.has("new")
+  const stepParam = params.get("step")
+  const step = STEP_IDS.includes(stepParam as StepId) ? (stepParam as StepId) : undefined
+  const myIds = useMemo(() => new Set((mine.rows ?? []).filter((r) => r.attrs.type === "election").map((r) => String(r.attrs.election))), [mine.rows])
+
   return (
     <>
-      <section className="card">
-        <div className="card-head">
-          <CardTitle icon="chart">“{election}” is on Arkiv</CardTitle>
-          <a className="btn btn-small" href={href("/results", { election, coordinator: wallet.address })}>
-            View results →
-          </a>
-        </div>
-        <p className="muted">Share this link: anyone who opens it counts only results from the observers you accredit, recomputed in their own browser.</p>
-      </section>
-      <Accreditations wallet={wallet} election={election} closesAt={closesAt} rows={accreditations} block={block} onChange={reload} />
-      <MissingUnits wallet={wallet} election={election} units={units} />
-    </>
-  )
-}
-
-function CreateElection({ wallet, election, onCreated }: { wallet: Wallet; election: string; onCreated: () => void }) {
-  const [name, setName] = useState("My election (synthetic)")
-  const [closes, setCloses] = useState(() => new Date(Date.now() + 10 * 86400_000).toISOString().slice(0, 10))
-  const [quorum, setQuorum] = useState(1)
-  const [csv, setCsv] = useState("unit_code,ward,lga,state,registered,name\nLA-IKJ-01-001,Ikeja Ward 01,Ikeja,Lagos,800,Unit 001, Town Hall\nLA-IKJ-01-002,Ikeja Ward 01,Ikeja,Lagos,650,Unit 002, Primary School")
-  const [status, setStatus] = useState<Status>()
-
-  const parsed = useMemo(() => parseUnits(csv, election), [csv, election])
-
-  async function create() {
-    if ("error" in parsed) return
-    setStatus({ kind: "busy", text: "Confirm the batch in your wallet…" })
-    const now = Math.floor(Date.now() / 1000)
-    try {
-      // One batch: the election and all its units land together, or none of them do.
-      const res = await wallet.client.executeBatch({
-        creates: [
-          electionEntity({ election, name, description: "Created in the Collate coordinator console.", parties: DEFAULT_PARTIES, opensAt: now, closesAt: Math.floor(new Date(closes).getTime() / 1000), quorum }),
-          ...parsed.units.map(unitEntity),
-        ],
-      })
-      setStatus({ kind: "done", text: `Created the election and ${parsed.units.length} units in one transaction.`, link: collate.explorer.tx(res.txHash) })
-      onCreated()
-    } catch (e) {
-      setStatus({ kind: "error", text: errorMessage(e) })
-    }
-  }
-
-  return (
-    <section className="card">
-      <CardTitle icon="upload">Create election “{election}”</CardTitle>
-      <p className="muted">You have no election with this id yet. It will be created by your wallet together with its units, in one batch.</p>
-      <div className="form">
-        <div className="field-row">
-          <label className="field">
-            <span>Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Counting closes</span>
-            <input type="date" value={closes} onChange={(e) => setCloses(e.target.value)} />
-            <small>Accreditations lapse 7 days after this unless extended.</small>
-          </label>
-          <label className="field">
-            <span>Agreeing observers per unit</span>
-            <input type="number" min={1} max={9} step={1} value={quorum} onChange={(e) => setQuorum(Math.max(1, Math.floor(Number(e.target.value)) || 1))} />
-            <small>A recommendation stored in the election. Viewers start from it and may change it.</small>
-          </label>
-        </div>
-        <label className="field">
-          <span>Polling units (CSV)</span>
-          <textarea rows={6} value={csv} onChange={(e) => setCsv(e.target.value)} />
-          <small>{"error" in parsed ? parsed.error : `${parsed.units.length} units`}. Synthetic data only.</small>
-        </label>
-        <div className="row">
-          <button type="button" className="btn btn-primary" disabled={"error" in parsed || status?.kind === "busy"} onClick={() => void create()}>
-            Create election and units
-          </button>
-        </div>
-        <StatusLine status={status} />
-      </div>
-    </section>
-  )
-}
-
-function parseUnits(csv: string, election: string): { units: UnitInput[] } | { error: string } {
-  const lines = csv.trim().split("\n").map((l) => l.split(",").map((c) => c.trim()))
-  const header = lines.shift()?.join(",")
-  if (header !== "unit_code,ward,lga,state,registered,name") return { error: "The first line must be: unit_code,ward,lga,state,registered,name" }
-  const units: UnitInput[] = []
-  for (const [i, cells] of lines.entries()) {
-    const [unitCode, ward, lga, state, registered, ...rest] = cells
-    const n = Number(registered)
-    if (!unitCode || !ward || !lga || !state || !Number.isInteger(n) || n < 0) return { error: `Line ${i + 2} is incomplete or has a bad registered count.` }
-    units.push({ election, unitCode, ward, lga, state, registered: n, name: rest.join(",") || unitCode })
-  }
-  if (units.length === 0) return { error: "Add at least one unit." }
-  return { units }
-}
-
-function Accreditations({ wallet, election, closesAt, rows, block, onChange }: { wallet: Wallet; election: string; closesAt: number; rows: Row[]; block?: bigint; onChange: () => void }) {
-  const [address, setAddress] = useState("")
-  const [alias, setAlias] = useState("")
-  const [status, setStatus] = useState<Status>()
-
-  async function run(label: string, action: () => Promise<{ txHash: string }>): Promise<boolean> {
-    setStatus({ kind: "busy", text: `${label}: confirm in your wallet…` })
-    try {
-      const res = await action()
-      setStatus({ kind: "done", text: `${label}: done.`, link: collate.explorer.tx(res.txHash) })
-      onChange()
-      return true
-    } catch (e) {
-      setStatus({ kind: "error", text: errorMessage(e) })
-      return false
-    }
-  }
-
-  const valid = isAddress(address) && alias.trim().length > 0
-  return (
-    <section className="card">
-      <div className="card-head">
-        <CardTitle icon="shield">Accredited observers</CardTitle>
-        <span className="pill">{rows.length}</span>
-      </div>
-      <p className="muted">An accreditation is a lease: it expires {LEASE_DAYS} days after counting closes unless you extend it. Revoking deletes it.</p>
-      <ul className="feed">
-        {rows.map((r) => {
-          const observer = String(r.attrs.observer)
-          const label = (r.payload as { alias?: string })?.alias ?? nameOf(observer) ?? "Observer"
-          return (
-            <li key={r.key}>
-              <span>
-                <b>{label}</b> <span className="mono muted">{observer.slice(0, 10)}…</span>
-              </span>
-              <span className="row">
-                <span className="collate-badge">expires in {expiresIn(r.expiresAt, block)}</span>
-                <button
-                  type="button"
-                  className="btn btn-small"
-                  onClick={() => void run(`Extend ${label}`, () => wallet.client.extendEntity({ entityKey: r.key, expires: ExpirationTime.atBlock(r.expiresAt + BLOCKS_PER_DAY * BigInt(LEASE_DAYS)) }))}
-                >
-                  Extend {LEASE_DAYS} days
-                </button>
-                <button type="button" className="btn btn-small" onClick={() => void run(`Revoke ${label}`, () => wallet.client.deleteEntity({ entityKey: r.key }))}>
-                  Revoke
-                </button>
-              </span>
-            </li>
-          )
-        })}
-      </ul>
-      <form className="form" onSubmit={(e) => { e.preventDefault(); if (valid) void run(`Accredit ${alias}`, () => wallet.client.createEntity(accreditationEntity(election, address, alias.trim(), closesAt))).then((ok) => { if (ok) { setAddress(""); setAlias("") } }) }}>
-        <div className="field-row">
-          <label className="field">
-            <span>Observer wallet</span>
-            <input value={address} onChange={(e) => setAddress(e.target.value.trim())} placeholder="0x…" />
-          </label>
-          <label className="field">
-            <span>Alias</span>
-            <input value={alias} onChange={(e) => setAlias(e.target.value)} placeholder="Observer 13" maxLength={40} />
-            <small>Public. Use a synthetic alias, never a real name.</small>
-          </label>
-        </div>
-        <div className="row">
-          <button type="submit" className="btn btn-primary" disabled={!valid}>
-            Accredit
-          </button>
-        </div>
-      </form>
-      <StatusLine status={status} />
-    </section>
-  )
-}
-
-function MissingUnits({ wallet, election, units }: { wallet: Wallet; election: string; units: Row[] }) {
-  const panel = useMemo(() => ({ ...resultsPanel(election, wallet.address, "state"), includeIgnored: false }), [election, wallet.address])
-  const { state } = usePanel(collate, panel)
-  const reported = new Set((state?.current ?? []).map((r) => String(r.attrs.unit_code)))
-  const missing = units.filter((u) => !reported.has(String(u.attrs.unit_code)))
-  return (
-    <section className="card">
-      <div className="card-head">
-        <CardTitle icon="map">Units with no result from your observers</CardTitle>
-        <span className="pill">{state?.status === "ready" ? `${missing.length} of ${units.length}` : "…"}</span>
-      </div>
-      <p className="small">{missing.map((u) => String(u.attrs.unit_code)).join(", ") || "Every unit has a result."}</p>
-      {state?.disputes.length ? <p className="notice notice-warn">{state.disputes.length} of your units are contested: your own observers disagree and no majority agrees.</p> : null}
-    </section>
-  )
-}
-
-function StatusLine({ status }: { status: Status }) {
-  if (!status) return null
-  return (
-    <p className={`notice ${status.kind === "error" ? "notice-error" : status.kind === "done" ? "notice-good" : ""}`}>
-      {status.text}{" "}
-      {status.link && (
-        <a href={status.link} target="_blank" rel="noreferrer">
-          View transaction ↗
+      <p className="coord-account small">
+        <span className="coord-dot" aria-hidden="true" />
+        Coordinator wallet{" "}
+        <a className="mono" href={collate.explorer.address(wallet.address)} target="_blank" rel="noreferrer" title={wallet.address}>
+          {shortAddress(wallet.address)}
         </a>
+        {nameOf(wallet.address) ? ` (${nameOf(wallet.address)})` : ""}
+        <span className="muted"> · switch accounts in your wallet to act as another coordinator</span>
+      </p>
+      {isNew || election ? (
+        <Workspace
+          key={isNew ? "new" : election}
+          wallet={wallet}
+          mine={mine}
+          myIds={myIds}
+          election={isNew ? undefined : election}
+          step={step}
+          draft={draft}
+          setDraft={setDraft}
+          flash={flash && flash.election === election ? flash.status : undefined}
+          onCreated={(status, id) => {
+            setFlash({ election: id, status })
+            setDraft(newDraft())
+          }}
+        />
+      ) : (
+        <ElectionList rows={mine.rows} error={mine.error} />
       )}
-    </p>
+    </>
   )
 }

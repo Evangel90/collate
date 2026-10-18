@@ -15,6 +15,12 @@ const PATHS: Record<string, ReactNode> = {
   expand: <path d="M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7" />,
   minimise: <path d="M4 14h6v6 M20 10h-6V4 M14 10l7-7 M3 21l7-7" />,
   database: <path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  copy: <path d="M9 9h11v11H9z M5 15H4V4h11v1" />,
+  plus: <path d="M12 5v14 M5 12h14" />,
+  trash: <path d="M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13" />,
+  link: <path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1 M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1" />,
+  users: <path d="M16 20v-1.5a3.5 3.5 0 00-3.5-3.5h-5A3.5 3.5 0 004 18.5V20 M10 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7z M20 20v-1.5a3.5 3.5 0 00-2.5-3.4 M15.5 4.2a3.5 3.5 0 010 6.6" />,
 }
 
 /** A small stroke icon. Decorative: hidden from assistive tech. */
