@@ -13,7 +13,7 @@
   "scripts": {
     "build": "npm run build -w @collate/core && npm run build -w @collate/web",
     "dev": "npm run dev -w @collate/web",
-    "test": "npm test -w @collate/core",
+    "test": "npm test -w @collate/core && npm test -w @collate/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "wallets": "tsx --tsconfig scripts/tsconfig.json scripts/wallets.ts",
     "seed": "tsx --tsconfig scripts/tsconfig.json scripts/seed.ts",
