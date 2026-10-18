@@ -6,13 +6,7 @@
       "node"
     ],
     "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "baseUrl": "..",
-    "paths": {
-      "@collate/core": [
-        "packages/core/src/index.ts"
-      ]
-    }
+    "moduleResolution": "Bundler"
   },
   "include": [
     "./*.ts",

@@ -86,7 +86,7 @@ function Hero() {
         </div>
         <div className="meters">
           <Meter label="By 6 pm the day after the vote" value={30} display="< 30%" />
-          <Meter label="By 9:30 pm on 28 February" value={45.19} display="45.19%" />
+          <Meter label="By 9:30 pm, three days after the vote" value={45.19} display="45.19%" />
           <p className="muted">79,927 of 176,846 polling-unit results were up by then.</p>
         </div>
         <LiveStat />
