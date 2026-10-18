@@ -213,6 +213,15 @@ function SandboxJoin({ wallet, scope, onJoined }: { wallet: Wallet; scope: Scope
   const expires = new Date(Math.max(closesAt + 7 * 86_400, Math.floor(Date.now() / 1000) + 86_400) * 1000)
   const empty = balance.status === "ready" && balance.wei === 0n
   const name = alias.trim()
+  // Say why the button is disabled instead of leaving a dead button.
+  const blocked =
+    status?.kind === "busy" ? "Waiting for your wallet…" :
+    status?.kind === "done" ? "This wallet has joined." :
+    !name ? "Enter an alias first." :
+    empty ? "Needs test GLM first (see above)." :
+    balance.status === "loading" ? "Checking this wallet's GLM balance…" :
+    info.loading ? "Loading the demo election from Arkiv…" :
+    undefined
 
   async function join() {
     setStatus({ kind: "busy", text: "Confirm the transaction in your wallet…" })
@@ -258,10 +267,11 @@ function SandboxJoin({ wallet, scope, onJoined }: { wallet: Wallet; scope: Scope
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={!name || empty || balance.status === "loading" || info.loading || status?.kind === "busy" || status?.kind === "done"}
+            disabled={blocked !== undefined}
           >
             Join the Open sandbox
           </button>
+          {blocked && <span className="muted">{blocked}</span>}
           {info.error && <span className="muted">Could not load the election: {info.error}</span>}
         </div>
       </form>
