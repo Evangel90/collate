@@ -1,7 +1,7 @@
 import { eq, type Row } from "@collate/core"
 import { expiresIn } from "@collate/core/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { Hex } from "viem"
+import { isAddress, type Hex } from "viem"
 import { collate, deployment, nameOf } from "../lib/collate"
 import { CardTitle, Skeleton } from "../components/ui"
 import { DEFAULT_PARTIES, figures, useElection } from "../lib/data"
@@ -12,11 +12,26 @@ import { setupQuery } from "../model/panels"
 import { checkFigures, correctionEntity, resultEntity, type ResultFigures } from "../model/schema"
 
 type Accreditation = { coordinator: string; group: string; row: Row }
-const COORDINATORS = deployment.coordinators.map((c) => c.address)
+type Scope = { election: string; coordinators: string[] }
+
+/**
+ * Which election and coordinators this page checks. A link from the coordinator console names
+ * both (`?election=…&coordinator=…`); without one, it is the demo election and its two groups.
+ */
+function scopeFrom(params?: URLSearchParams): Scope {
+  const election = params?.get("election")?.trim()
+  const coordinator = params?.get("coordinator")?.trim().toLowerCase()
+  if (election && coordinator && isAddress(coordinator)) return { election, coordinators: [coordinator] }
+  return { election: election || deployment.election, coordinators: deployment.coordinators.map((c) => c.address) }
+}
+
+const groupName = (address: string) =>
+  deployment.coordinators.find((c) => c.address === address)?.name ?? `coordinator ${address.slice(0, 10)}…`
 const EMPTY: Record<keyof ResultFigures, string> = { votes_a: "", votes_b: "", votes_c: "", rejected: "", accredited: "" }
 
-export function Observe() {
-  const election = deployment.election
+export function Observe({ params }: { params?: URLSearchParams }) {
+  const scope = useMemo(() => scopeFrom(params), [params])
+  const { election, coordinators } = scope
   const { wallet, connect, error: walletError, hasProvider } = useWallet()
   const [accreditations, setAccreditations] = useState<Accreditation[] | undefined>()
   const [mine, setMine] = useState<Row[]>([])
@@ -25,7 +40,6 @@ export function Observe() {
   /** `fresh` after posting, so the new result shows instead of a cached list. */
   const load = useCallback(async (w: Wallet, fresh = false) => {
     setAccreditations(undefined)
-    const coordinators = COORDINATORS
     // The setup read (election, units, accreditations of every coordinator) is what the form needs
     // anyway; started first, it also answers Q9 below in the browser, so this page costs 2 queries.
     void collate.fetchAll({ where: setupQuery(election), creators: coordinators, payload: true }).catch(() => undefined)
@@ -37,12 +51,12 @@ export function Observe() {
     setBlock(acc.block)
     setAccreditations(
       acc.rows.map((row) => {
-        const c = deployment.coordinators.find((x) => x.address === row.creator)!
-        return { coordinator: c.address, group: c.name, row }
+        const coordinator = row.creator.toLowerCase()
+        return { coordinator, group: groupName(coordinator), row }
       }),
     )
     setMine(results.rows.filter((r) => r.attrs.type === "unit_result" || r.attrs.type === "correction"))
-  }, [election])
+  }, [election, coordinators])
 
   useEffect(() => {
     if (wallet) void load(wallet)
@@ -71,12 +85,13 @@ export function Observe() {
           {walletError && <p className="notice notice-error">{walletError}</p>}
         </section>
       ) : (
-        <AccreditationStatus wallet={wallet} accreditations={accreditations} block={block} />
+        <AccreditationStatus wallet={wallet} election={election} accreditations={accreditations} block={block} />
       )}
 
       {wallet && accreditations && accreditations.length > 0 && (
         <SubmitForm
           wallet={wallet}
+          scope={scope}
           coordinator={accreditations[0]!.coordinator}
           mine={mine}
           onPosted={() => void load(wallet, true)}
@@ -86,7 +101,7 @@ export function Observe() {
   )
 }
 
-function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet; accreditations: Accreditation[] | undefined; block?: bigint }) {
+function AccreditationStatus({ wallet, election, accreditations, block }: { wallet: Wallet; election: string; accreditations: Accreditation[] | undefined; block?: bigint }) {
   return (
     <section className="card">
       <CardTitle icon="shield">Accreditation</CardTitle>
@@ -98,7 +113,7 @@ function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet
         <Skeleton lines={2} />
       ) : accreditations.length === 0 ? (
         <p className="notice notice-warn">
-          No live accreditation for this wallet in {deployment.election}. Submitting is disabled: results from unaccredited wallets
+          No live accreditation for this wallet in {election}. Submitting is disabled: results from unaccredited wallets
           are ignored by every viewer. Ask a coordinator to accredit <span className="mono">{wallet.address}</span>.
         </p>
       ) : (
@@ -114,10 +129,10 @@ function AccreditationStatus({ wallet, accreditations, block }: { wallet: Wallet
   )
 }
 
-function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; coordinator: string; mine: Row[]; onPosted: () => void }) {
-  const election = deployment.election
+function SubmitForm({ wallet, scope, coordinator, mine, onPosted }: { wallet: Wallet; scope: Scope; coordinator: string; mine: Row[]; onPosted: () => void }) {
+  const { election } = scope
   // Same scope as the page's setup read, so the session cache answers it.
-  const info = useElection(election, coordinator, COORDINATORS)
+  const info = useElection(election, coordinator, scope.coordinators)
   const parties = info.parties.length ? info.parties : DEFAULT_PARTIES
   const [unitCode, setUnitCode] = useState("")
   const [values, setValues] = useState(EMPTY)
@@ -268,7 +283,7 @@ function SubmitForm({ wallet, coordinator, mine, onPosted }: { wallet: Wallet; c
           {status.text}{" "}
           {status.link && (
             <>
-              <a href={status.link} target="_blank" rel="noreferrer">View transaction ↗</a> · <a href={href("/results")}>See it on the results page</a>
+              <a href={status.link} target="_blank" rel="noreferrer">View transaction ↗</a> · <a href={href("/results", { election, coordinator })}>See it on the results page</a>
             </>
           )}
         </p>

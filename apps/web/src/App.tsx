@@ -22,7 +22,7 @@ export function App() {
   const route = useRoute()
   const page =
     route.path === "/results" ? <Results params={route.params} /> :
-    route.path === "/observe" ? <Observe /> :
+    route.path === "/observe" ? <Observe params={route.params} /> :
     route.path === "/coordinate" ? <Coordinate /> :
     route.path === "/studio" || route.path === "/explore" ? <Explore params={route.params} /> :
     <Landing />
