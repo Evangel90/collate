@@ -11,6 +11,26 @@ export const DEFAULT_PARTIES: Party[] = [
   { field: "votes_c", name: "Party C", short: "C" },
 ]
 
+/** Readable names for Collate's attributes; other datasets fall back to collate-core's humanizeKey. */
+export const ATTR_LABELS: Record<string, string> = {
+  election: "Election",
+  unit_code: "Unit",
+  state: "State",
+  lga: "LGA",
+  ward: "Ward",
+  registered: "Registered voters",
+  accredited: "Accredited voters",
+  rejected: "Rejected ballots",
+  submitted_at: "Submitted",
+  opens_at: "Opens",
+  closes_at: "Closes",
+  corrects: "Corrects entity",
+  observer: "Observer wallet",
+}
+
+/** Where first, then the figures, then when: the order a person reads a polling-unit result in. */
+export const ATTR_ORDER = ["state", "lga", "ward", "votes_a", "votes_b", "votes_c", "rejected", "accredited", "registered", "corrects", "submitted_at"]
+
 export type ElectionInfo = {
   row: Row | undefined
   name: string

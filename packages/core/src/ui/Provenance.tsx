@@ -44,7 +44,7 @@ export function Provenance({ title, rows, explorer, nameOf, describe, currentBlo
           <li key={r.key}>
             <div className="collate-proof-main">
               <strong>{String(r.attrs.unit_code ?? r.attrs.type ?? "entity")}</strong>
-              {describe && <span className="collate-proof-desc">{describe(r)}</span>}
+              {describe && <div className="collate-proof-desc">{describe(r)}</div>}
             </div>
             <div className="collate-proof-meta">
               <span>

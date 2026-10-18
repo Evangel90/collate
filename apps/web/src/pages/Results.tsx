@@ -92,10 +92,12 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
   const fetched = useMemo(() => resultsPanel(election, coordinator.address, "state", undefined, sandbox), [election, coordinator.address, sandbox])
   const { state: raw } = usePanel(collate, fetched)
   // `panel` is what the page shows and links to.
-  const panel = useMemo(
-    () => resultsPanel(election, coordinator.address, groupBy, quorum, sandbox),
-    [election, coordinator.address, groupBy, quorum, sandbox],
-  )
+  // Party names from the election payload label the link into Studio; labels never change what is read.
+  const panel = useMemo(() => {
+    const base = resultsPanel(election, coordinator.address, groupBy, quorum, sandbox)
+    const names = Object.fromEntries(info.parties.map((p) => [p.field, p.name]))
+    return { ...base, labels: { ...base.labels, ...names } }
+  }, [election, coordinator.address, groupBy, quorum, sandbox, info.parties])
   const state = useMemo(() => raw && { ...raw, ...computePanel(panel, raw.rows) }, [raw, panel])
   const parties = info.parties
   const members = [...(state?.trust?.members.values() ?? [])]

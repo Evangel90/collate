@@ -1,5 +1,5 @@
 import { decodePanel, encodePanel, renderWhere, type Row } from "@collate/core"
-import { Provenance, usePanel } from "@collate/core/ui"
+import { AttrList, Provenance, usePanel } from "@collate/core/ui"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Builder } from "../components/studio/Builder"
 import { Dashboard, MAX_PINNED, decodeDashboard, encodeDashboard } from "../components/studio/Dashboard"
@@ -10,10 +10,13 @@ import { PRESETS, type Preset } from "../components/studio/presets"
 import { UseInApp } from "../components/studio/UseInApp"
 import { CardTitle, Icon } from "../components/ui"
 import { collate, nameOf } from "../lib/collate"
+import { ATTR_LABELS, ATTR_ORDER } from "../lib/data"
 import { href } from "../lib/router"
 import "../studio.css"
 
 const DEFAULT = PRESETS[0]!
+/** Already in the dialog's heading (unit code or type), or the same on every row (election). */
+const PROOF_HIDE = ["type", "unit_code", "election"]
 const ECOSYSTEM = "https://hub.arkiv.network/ecosystem"
 const CORE_SOURCE = "https://github.com/Evangel90/collate/tree/main/packages/core"
 
@@ -312,12 +315,9 @@ export function Explore({ params }: { params: URLSearchParams }) {
           explorer={collate.explorer}
           nameOf={(a) => nameOf(a) ?? state?.trust?.members.get(a)?.label}
           currentBlock={state?.block}
-          describe={(r) =>
-            Object.entries(r.attrs)
-              .filter(([k]) => k !== "type")
-              .map(([k, v]) => `${k}=${v}`)
-              .join(" ")
-          }
+          describe={(r) => (
+            <AttrList attrs={r.attrs} labels={{ ...panel.labels, ...ATTR_LABELS }} hide={PROOF_HIDE} order={ATTR_ORDER} />
+          )}
           onClose={() => setProof(undefined)}
         />
       )}

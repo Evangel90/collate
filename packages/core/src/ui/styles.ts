@@ -89,6 +89,11 @@ export const collateCss = `
 .collate-proof-list li { padding: 12px 14px; border: 1px solid var(--collate-border); border-radius: 12px; background: var(--collate-plane); display: grid; gap: 6px; }
 .collate-proof-main { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .collate-proof-desc { color: var(--collate-ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.collate-proof-desc:has(.collate-attrs) { flex-basis: 100%; }
+.collate-attrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px 16px; margin: 6px 0 0; }
+.collate-attr { min-width: 0; }
+.collate-attr dt { color: var(--collate-ink-2); font-size: 11px; letter-spacing: 0.02em; }
+.collate-attr dd { margin: 0; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .collate-proof-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; color: var(--collate-ink-2); }
 .collate-proof-meta a { color: var(--collate-accent); }
 .collate-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--collate-plane); border: 1px solid var(--collate-border); font-size: 12px; color: var(--collate-ink-2); }

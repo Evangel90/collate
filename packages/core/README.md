@@ -13,7 +13,7 @@ Arkiv, the Web3 database, has no server-side ordering or aggregation and returns
 | `aggregate` | Group-by, sum, count, min, max and sort in the browser | Typed numeric attributes |
 | `live` | Subscribes to entity events over WebSocket and patches results in place, re-checking each new entity against the query on the node | `watchEntityEvents`, no `fromBlock` |
 | `share` | Encodes a whole panel config into a URL and back | — |
-| `ui` | Optional React: `usePanel`, `BarChart`, `GroupTable`, `RowTable`, `Provenance` | `$creator`, entity key, Entity Expiration |
+| `ui` | Optional React: `usePanel`, `BarChart`, `GroupTable`, `RowTable`, `Provenance`, `AttrList` (an entity's attributes as a labelled grid: dates for timestamps, grouped digits, short addresses) | `$creator`, entity key, Entity Expiration |
 
 It knows nothing about elections. [Collate](../../README.md) is its first user.
 
