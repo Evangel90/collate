@@ -38,7 +38,15 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Surface: TypeScript SDK 0.8.1 `watchEntityEvents`
 - Expected: to filter live events by attribute (e.g. `type = unit_result`).
 - Actual: `EntityCreated` carries `entityKey`, `owner`, `expiresAt` and `creationFlags` only; the JSDoc says so plainly. collate-core re-reads each candidate with `$key = key(k) AND <panel query>`, so the node itself decides whether it belongs to the panel, then re-checks `$creator`.
-- Steps to reproduce: `client.watchEntityEvents({ onEntityCreated: console.log })` on a WebSocket client.
+- Steps to reproduce: in a Node ESM script with `@arkiv-network/sdk@0.8.1` and `viem@2.57.7` installed, run
+  ```ts
+  import { createPublicClient } from "@arkiv-network/sdk"
+  import { tiramisu } from "@arkiv-network/sdk/chains"
+  import { webSocket } from "viem"
+  const client = createPublicClient({ chain: tiramisu, transport: webSocket("wss://rpc.tiramisu.db-chain.testnet.arkiv.network") })
+  client.watchEntityEvents({ onEntityCreated: (e) => console.log(Object.keys(e), e) })
+  ```
+  and wait for another app's write: each logged event has `entityKey`, `owner`, `expiresAt` and `creationFlags`, and no attributes.
 - Workaround: the re-read above; events from untrusted owners are skipped before any read.
 - Suggested fix: optional attribute filter on the subscription, or include attributes in the event, to save one round trip per event.
 
@@ -46,7 +54,7 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Surface: Hub faucet, https://hub.arkiv.network/faucet
 - Expected: a way to fund a freshly generated seed wallet from a script or by pasting an address.
 - Actual: the page connects a browser wallet and allows "one claim per wallet, per cooldown window"; the cooldown length is not stated on the page. A seed script with 15 fresh wallets can't fund itself.
-- Steps to reproduce: open the faucet page without a wallet extension.
+- Steps to reproduce: (1) open https://hub.arkiv.network/faucet in a browser profile with no wallet extension: there is no field to paste an address, only a connect-wallet button; (2) read the claim rules on the page: "one claim per wallet, per cooldown window", with no length given for the window.
 - Workaround: fund one wallet (Coordinator A) by hand; `scripts/seed.ts` sends a share of its GLM to the other 14 wallets with plain value transfers.
 - Suggested fix: allow pasting an address, and state the amount and cooldown.
 
@@ -70,7 +78,11 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Surface: JSON-RPC `arkiv_query` on `https://rpc.tiramisu.db-chain.testnet.arkiv.network`, TypeScript SDK 0.8.1 over viem `http()`
 - Expected: a development day of probes, a seed run and a few verification runs from one machine to stay within the public read limits, or a clear error if not.
 - Actual: after a day's development, every query started failing. The SDK error was only `HTTP request failed.`; viem's default retries on 429 made `npm run verify` hang for over two minutes instead of failing. The raw response was `HTTP 429`, headers `ratelimit: limit=10000, remaining=0, reset=883` and `retry-after: 883`, body `{"error":"ANON_COST_LIMITED","message":"unauthenticated query budget exhausted; get an API key at https://hub.arkiv.network for a monthly quota"}`. No `Arkiv-Cost` header is sent on the 429s. Once the window reset, successful `arkiv_query` responses carried `arkiv-cost: 100` for every query measured: 1, 8, 48 and 76 rows, key-only or full selection, all cost 100. The anonymous budget is therefore 100 queries per window (about an hour) per connection, independent of result size. Non-query methods (`eth_blockNumber`) sit under a separate `limit=600` request limit. The budget had been spent by Collate's own live panels re-reading every new entity on the shared chain (about 20 queries a minute), so a single open tab emptied it in minutes.
-- Steps to reproduce: from one IP, run a few hundred `select("*")` queries (paginated reads plus live re-reads of other apps' events), then `curl -s -D - -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["type = str(\"x\")",{"includeData":{"key":true}}]}' https://rpc.tiramisu.db-chain.testnet.arkiv.network`.
+- Steps to reproduce: from one IP at the start of a fresh window, send 101 queries and count the status codes; expect 100 × `200` then `429`:
+  ```sh
+  for i in $(seq 101); do curl -s -o /dev/null -w "%{http_code}\n" -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["type = str(\"x\")",{"includeData":{"key":true}}]}' https://rpc.tiramisu.db-chain.testnet.arkiv.network; done | uniq -c
+  ```
+  Then see the headers and body of the refusal (and, after the reset, `arkiv-cost: 100` on a success) with `curl -s -D - -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["type = str(\"x\")",{"includeData":{"key":true}}]}' https://rpc.tiramisu.db-chain.testnet.arkiv.network`.
 - Workaround: collate-core now (a) turns viem's retries off, because even one viem retry waits out `Retry-After` (883 s here) before failing, and meters its own transport instead: a 429 is recorded once, later queries are refused in the browser until `Retry-After` passes, and the page shows one message and retries then; (b) never re-reads live events from untrusted owners, so an idle trusted panel makes no queries; (c) keeps a session cache, so identical or narrower reads within 90 s cost nothing, and a panel served from it catches up through `eth_getLogs`, which is not metered; and (d) the app merges the election, its units and the accreditations of both observer groups into one OR query and derives secondary panels from the main panel's rows. Because cost is per query, not per row, fewer broader queries beat many narrow ones. A results page load is now 2 queries (3 once the range-query card is scrolled into view). API keys are not an option for a public static page: they belong in server-side headers, and Collate has no server by design.
 - Suggested fix: name the limit in the SDK error (map 429 `ANON_COST_LIMITED` to a typed error carrying `retryAfter`), and document the anonymous budget, its window and the flat 100-unit query price next to the query docs, so apps design for "few broad queries" from the start.
 
