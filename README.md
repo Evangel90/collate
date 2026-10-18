@@ -96,6 +96,18 @@ The seed is idempotent: it first reads everything the election already has from 
 3. Switch to Group B on the page and run `npm run verify -- --coordinator <Group B address>`.
 4. Or skip our code entirely: query `type = "unit_result" AND election = "collate-demo-ng"` with any Arkiv client and filter by the creators listed below.
 
+### Try it yourself
+
+Groups A and B only count observers they accredited, so you can post through the **Open sandbox** instead:
+
+1. Install a browser wallet (MetaMask or Rabby) and get test GLM for it at the [Arkiv faucet](https://hub.arkiv.network/faucet).
+2. Open the [Observer page](https://collate-arkiv.vercel.app/#/observe) and connect. Collate switches the wallet to Tiramisu.
+3. Under "Try it: join the Open sandbox as an observer", keep the synthetic alias (e.g. "Tester 4f2a") and press **Join the Open sandbox**. Your wallet signs one `sandbox_registration` entity naming its own address.
+4. Post a result for a unit that already has one: the same figures make it **Certified 2/2**, different ones make it **Contested**.
+5. Open [Results → Open sandbox](https://collate-arkiv.vercel.app/#/results?group=sandbox). Your result is there under your alias, marked self-registered. In the Group A and Group B views it is listed as not counted.
+
+A registration is valid only when it was created by the wallet it names (`$creator` equals `observer`), which is what keeps anyone from forging one for another wallet. The sandbox still lets anyone in, so its totals are not vetted.
+
 ## Wallets that create Collate's entities (Tiramisu)
 
 All are fresh testnet wallets created for this project and hold no real funds.
