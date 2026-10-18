@@ -53,7 +53,7 @@ The same consensus rule also speaks to the "Multi-Writer Collaborative State" ga
 | Voter and observer identities | Personal data is never stored, even hashed; observers are exposed to pressure if named | Nowhere; observers are wallet addresses plus a synthetic alias |
 | Result-sheet photos | Large, and can expose people at the unit | With the observer group; only a SHA-256 hash (computed in the browser) is stored |
 | Computed totals | A stored "official total" is one more thing that can be wrong or forged | Recomputed by every viewer from raw results |
-| Disputes | Derived; storing them would let one party declare a dispute settled | Computed client-side by collate-core |
+| Consensus status (certified, contested, pending) | Derived; storing it would let one party declare a unit settled | Computed client-side by collate-core |
 | Real wards, polling units and results | Made-up figures under real polling-unit names could pass for real results ahead of Nigeria's 2027 elections | Nowhere. The demo uses real state and LGA names only; wards are numbered, units are generic, parties are fictional, and the election's id, name and description say it is synthetic |
 | Keys and secrets | Dangerous and disqualifying | `.env` (git-ignored) and the user's wallet |
 | Viewer preferences | Personal, per device | Browser `localStorage` |
@@ -64,12 +64,12 @@ The same consensus rule also speaks to the "Multi-Writer Collaborative State" ga
 collate/
 ├── packages/core/     collate-core: live, trust-filtered Arkiv panels (+ optional React UI)
 ├── apps/web/          Collate: landing, results, observer, coordinator and Studio pages
-├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals), replay.ts (offline)
+├── scripts/           wallets.ts, seed.ts (synthetic election), verify.ts (reproduce totals), replay.ts (offline), accredit.ts
 ├── arkiv/             schema.md, friction.md, seed-transactions.md
 └── LICENSE            MIT
 ```
 
-Stack: npm workspaces, TypeScript, Vite + React (static build), `@arkiv-network/sdk` **0.8.1** pinned exactly, viem, Vitest.
+Stack: npm workspaces, TypeScript, Vite + React (static build), `@arkiv-network/sdk` **0.8.1** pinned exactly, viem, Vitest. The engine is published as [`collate-core`](https://www.npmjs.com/package/collate-core) on npm.
 
 ## Run it
 
@@ -79,7 +79,7 @@ Requires Node 20 or later.
 git clone https://github.com/Evangel90/collate.git
 cd collate
 npm install
-npm test            # collate-core unit tests
+npm test            # unit tests: collate-core, then the web app
 npm run dev         # http://localhost:5173, reads live from Tiramisu
 npm run build       # static site in apps/web/dist
 ```
@@ -99,10 +99,13 @@ The seed is idempotent: it first reads everything the election already has from 
 
 ## Reproduce every claim
 
-1. Open the live app, keep **Observer Group A** selected, and note the totals.
-2. Run `npm run verify`. It prints the exact queries (Q3, then Q4′, split by trust in memory: two metered queries in all), the trusted observers, how many writes were ignored, the certified, contested and pending units (with outliers) and the totals by state, read straight from Tiramisu. They match the page. Add `--quorum 2` to match the page with "Require at least 2 agreeing observers" selected.
-3. Switch to Group B on the page and run `npm run verify -- --coordinator <Group B address>`.
-4. Or skip our code entirely: query `type = "unit_result" AND election = "collate-demo-ng"` with any Arkiv client and filter by the creators listed below.
+No wallet needed for any of these.
+
+1. Open the [results page](https://collate-arkiv.vercel.app/#/results) and keep **Observer Group A** at quorum 1. Expect 72 units, 70 certified and 1 contested (`KN-NAS-09-002`, Observer 01 against Observer 02), and `LA-IKJ-03-002` certified 2 of 3 with Observer 04 named as the outlier. Totals: Unity Party 14,057, Progress Alliance 13,681, Green Coalition 10,476. Click any bar for the wallet that posted each result and its entity on the explorer. (`OY-OGN-07-003` is left for posting live; if someone has posted it, it shows as 71 certified.)
+2. Run `npm run verify`. It prints the exact queries (Q3, then Q4′, split by trust in memory: two metered queries in all), the trusted observers, how many writes were ignored, the certified, contested and pending units (with outliers) and the totals by state, read straight from Tiramisu. They match the page. Add `--quorum 2` to match the page with "Count a unit when at least 2 observers report the same figures" selected.
+3. Switch to Group B on the page and run `npm run verify -- --coordinator 0xB926A5eeefbdE3dCb4AC648a76031C69d815D6FD --quorum 2`: 24 certified, 1 contested (`FC-AMC-10-002`), 23 pending, on the page and in the terminal.
+4. Or skip our code entirely: run `(type = str('unit_result') OR type = str('correction')) AND election = str('collate-demo-ng')` with any Arkiv client against Tiramisu and keep only entities created by the wallets listed below. Every card on the results page shows its exact query under "The Arkiv query behind this panel".
+5. Open [Studio](https://collate-arkiv.vercel.app/#/studio) and pick "Asli batches, registered wallets only": another team's drug-batch entities, where a cloned batch from an unregistered wallet is ignored.
 
 ### Try it yourself
 
@@ -118,7 +121,7 @@ A registration is valid only when it was created by the wallet it names (`$creat
 
 ## Wallets that create Collate's entities (Tiramisu)
 
-All are fresh testnet wallets created for this project and hold no real funds.
+All are testnet wallets for this project and hold no real funds. Every write they made is linked in [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md).
 
 | Role | Address |
 | --- | --- |
@@ -136,6 +139,7 @@ All are fresh testnet wallets created for this project and hold no real funds.
 | Observer 10 (B) | `0x86C853e970c882DD78b026F5135B0782B360BB0D` |
 | Observer 11 (B) | `0x4563504c13E20b9d635783eD4A61ABC17903ecf8` |
 | Observer 12 (B) | `0xE99912B464D3C01Cd680Bdc6EF4bc6f5555f4a87` |
+| Observer 13 (A, accredited later for live testing) | `0x36a95c939fa70f29421261c770160645efa9f9e4` |
 | Unaccredited wallet (posts one inflated result to show it is ignored) | `0xaAE64908f5c22a8327764a93907Aafd4e7C3AB97` |
 
 ## The demo dataset
@@ -155,7 +159,7 @@ An earlier version of the demo used election id `demo-2027` with invented place 
 
 ## Built with
 
-TypeScript, React, Vite, viem and `@arkiv-network/sdk` 0.8.1. AI coding assistant: Claude Code (Claude Opus 5.5). Everything in this repository was written during the hackathon (9–18 Oct 2026); there is no pre-existing work.
+TypeScript, React, Vite, viem and `@arkiv-network/sdk` 0.8.1; tested with Vitest; hosted as a static site on Vercel. AI coding assistant: Claude Code (Claude Opus 5.5). Everything in this repository was written during the hackathon (9–18 Oct 2026); there is no pre-existing work.
 
 ## Licence
 
