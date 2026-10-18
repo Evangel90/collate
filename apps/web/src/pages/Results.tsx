@@ -129,7 +129,7 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
             </span>
           ) : null}
         </div>
-        <QuorumControl quorum={quorum} recommended={info.quorum} onChange={setQuorumChoice} />
+        <QuorumControl quorum={quorum} recommended={info.quorum} most={mostReporters(state)} onChange={setQuorumChoice} />
       </section>
 
       {/* A spent read budget is explained once, by the page-wide notice. */}
@@ -301,12 +301,14 @@ const who = (r: Row) => nameOf(r.creator) ?? r.creator.slice(0, 10)
  * Viewers already choose whom to trust; this lets them also raise the bar for how many of those
  * observers must agree before a unit counts.
  */
-function QuorumControl({ quorum, recommended, onChange }: { quorum: number; recommended?: number; onChange: (q: number) => void }) {
-  const options = [...new Set([1, 2, 3, ...(recommended ? [recommended] : [])])].sort((a, b) => a - b)
+function QuorumControl({ quorum, recommended, most, onChange }: { quorum: number; recommended?: number; most: number; onChange: (q: number) => void }) {
+  // Offer every bar some unit could still meet: up to the most observers that reported any one unit.
+  const top = Math.min(9, Math.max(2, most, recommended ?? 1, quorum))
+  const options = Array.from({ length: top }, (_, i) => i + 1)
   return (
     <div className="card-foot">
       <span className="toolbar">
-        <span className="toolbar-label">Require at least</span>
+        <span className="toolbar-label">Count a unit when at least</span>
         <span className="seg" role="group" aria-label="Agreeing observers required per unit">
           {options.map((q) => (
             <button key={q} type="button" aria-pressed={q === quorum} onClick={() => onChange(q)}>
@@ -314,14 +316,20 @@ function QuorumControl({ quorum, recommended, onChange }: { quorum: number; reco
             </button>
           ))}
         </span>
-        <span className="toolbar-label">agreeing observer{quorum === 1 ? "" : "s"} per unit</span>
+        <span className="toolbar-label">{quorum === 1 ? "observer has reported it" : "observers report the same figures"}</span>
       </span>
       <span>
-        They must also outnumber everyone else who reported the unit.
+        …and they are a majority of everyone who reported it.
+        {most ? ` At most ${most} observer${most === 1 ? "" : "s"} reported any one unit.` : ""}
         {recommended ? ` This coordinator recommends ${recommended}.` : ""}
       </span>
     </div>
   )
+}
+
+/** The largest number of trusted observers that reported any one unit. */
+function mostReporters(state: PanelState | undefined): number {
+  return Math.max(0, ...(state?.consensus ?? []).map((c) => c.sources))
 }
 
 /** "Certified 2/3": agreeing of those who reported. "Pending 1/2": reported of those required. */
