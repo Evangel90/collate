@@ -46,16 +46,34 @@ export type TrustConfig = {
   addressField: string
   /** Optional attribute on list entities shown as the member's label. */
   labelField?: string
+  /** Optional open list: wallets that vouch for themselves, e.g. a sandbox anyone may join. */
+  selfRegistration?: SelfRegistration
+}
+
+/**
+ * Registrations any wallet may create. One grants trust only to the wallet that created it: the
+ * wallet named in `addressField` must equal the entity's `$creator`, so nobody can register someone
+ * else. A viewer who picks a config with this list is choosing to count anyone who joins.
+ */
+export type SelfRegistration = {
+  /** Predicates for the registration entities, e.g. `type = "sandbox_registration"`. Read from any creator. */
+  listQuery: Where[]
+  /** Attribute naming the registered wallet; it must equal `$creator`. */
+  addressField: string
+  /** Optional attribute shown as the member's label (else the payload's `alias`). */
+  labelField?: string
 }
 
 export type TrustMember = {
   address: Address
-  /** The root creator that vouched for this wallet. */
+  /** The root creator that vouched for this wallet, or the wallet itself when self-registered. */
   via: Address
   /** The list entity that grants trust, so a delete or expiry can be tracked. */
   grantKey: Hex
   grantExpiresAt: bigint
   label?: string
+  /** True when the grant is the wallet's own registration, not a root's list entity. */
+  selfRegistered?: boolean
 }
 
 export type TrustSet = {

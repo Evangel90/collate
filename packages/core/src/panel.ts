@@ -7,7 +7,7 @@ import { describeError } from "./errors"
 import { replay, watch } from "./live"
 import { fetchAll, fetchMatchingMany, headBlock, type FetchResult } from "./query"
 import { supersede } from "./supersede"
-import { partitionByTrust, resolveTrust } from "./trust"
+import { isSelfRegistration, partitionByTrust, resolveTrust, type TrustRead } from "./trust"
 import type { Panel, PanelState, Row, TrustSet } from "./types"
 
 export type PanelHandle = {
@@ -28,6 +28,13 @@ const SCOPED_FLUSH = 250
  * shared chain, and Tiramisu charges per query: such panels re-read at most once a minute.
  */
 const UNSCOPED_FLUSH = 60_000
+/**
+ * With a self-registration list, any wallet's write could be a registration, and entity events
+ * carry no attributes. Each new wallet's first write is checked, in batches of up to 25 keys at most
+ * once a minute: on a busy chain the same few wallets write constantly, so this soon costs nothing.
+ */
+const REGISTRATION_FLUSH = 60_000
+const REGISTRATION_BATCH = 25
 
 /** The pure part of a panel: trusted rows in, totals, consensus and supersessions out. */
 export function computePanel(
@@ -87,6 +94,14 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   const queued = new Map<Hex, { owner: string; block: bigint }>()
   let flushTimer: ReturnType<typeof setTimeout> | undefined
   let lastFlush = 0
+  // Self-registration: the block the registrations were read at, wallets already seen writing
+  // since, and their first new entities, waiting to be checked.
+  const selfReg = config.trust?.selfRegistration
+  let selfBlock = -1n
+  const seenOwners = new Set<string>()
+  const candidates = new Map<Hex, { owner: string; block: bigint }>()
+  let candidateTimer: ReturnType<typeof setTimeout> | undefined
+  let lastCandidateFlush = 0
 
   const set = (patch: Partial<PanelState>) => {
     if (destroyed) return
@@ -102,7 +117,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
   /** Reads the snapshot: from the session cache when `atBlock` is unset, else pinned at that block. */
   async function load(atBlock?: bigint) {
     let trust: TrustSet | undefined
-    let trustRead: { block: bigint; cached?: boolean } | undefined
+    let trustRead: Omit<TrustRead, "trust"> | undefined
     if (config.trust) {
       const t = await resolveTrust(clients.http, config.trust, atBlock)
       trust = t.trust
@@ -126,6 +141,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
       rows = result.rows
     }
     trustBlock = trustRead?.block ?? result.block
+    if (trustRead?.selfBlock !== undefined) selfBlock = trustRead.selfBlock
     set({ block: result.block })
     recompute(rows, ignored, trust)
 
@@ -196,6 +212,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
       if (block > trustBlock) scheduleRefresh(block) // the trust list may have changed
       return
     }
+    if (selfReg && !state.trust?.members.has(owner)) maybeRegistration(key, owner, block)
     // Arkiv is shared and busy: entities from untrusted owners are never re-read live, which keeps
     // an idle viewer of a trusted panel at zero queries. The ignored list comes with each snapshot.
     if (config.trust ? state.trust && !state.trust.members.has(owner) : scope && !scope.has(owner)) return
@@ -228,6 +245,49 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
     } catch (error) {
       set({ live: "error", error: describeError(error).message })
     }
+  }
+
+  /**
+   * Queues a wallet's first entity since the registrations were read, in case it is a registration.
+   * Entities at or before that block are already in the snapshot.
+   */
+  function maybeRegistration(key: Hex, owner: string, block: bigint) {
+    if (block <= selfBlock || seenOwners.has(owner)) return
+    seenOwners.add(owner)
+    candidates.set(key, { owner, block })
+    scheduleCandidates()
+  }
+
+  function scheduleCandidates() {
+    if (candidateTimer || candidates.size === 0) return
+    const wait = Math.max(SCOPED_FLUSH, lastCandidateFlush + REGISTRATION_FLUSH - Date.now())
+    candidateTimer = setTimeout(() => void flushCandidates(), wait)
+  }
+
+  /** One query asks which queued entities are registrations; a valid one re-reads trust and results. */
+  async function flushCandidates() {
+    candidateTimer = undefined
+    if (destroyed || !selfReg) return
+    if (!state.trust) {
+      if (state.status === "error") candidates.clear()
+      else candidateTimer = setTimeout(() => void flushCandidates(), 500)
+      return
+    }
+    for (const [key, e] of candidates) if (e.block <= selfBlock || state.trust.members.has(e.owner)) candidates.delete(key)
+    const batch = [...candidates].slice(0, REGISTRATION_BATCH)
+    for (const [key] of batch) candidates.delete(key)
+    if (batch.length > 0) {
+      lastCandidateFlush = Date.now()
+      const block = batch.reduce((m, [, e]) => maxBlock(m, e.block), 0n)
+      try {
+        const found = await fetchMatchingMany(clients.http, batch.map(([key]) => key), selfReg.listQuery, false, block)
+        // A registration naming another wallet grants nothing, so it changes nothing here either.
+        if (found.some((r) => isSelfRegistration(selfReg, r))) scheduleRefresh(block)
+      } catch (error) {
+        set({ live: "error", error: describeError(error).message })
+      }
+    }
+    scheduleCandidates() // anything past the batch size waits for the next window
   }
 
   function onDeleted(key: Hex) {
@@ -278,6 +338,7 @@ export function createPanel(clients: Clients, config: Panel): PanelHandle {
       destroyed = true
       clearTimeout(refreshTimer)
       clearTimeout(flushTimer)
+      clearTimeout(candidateTimer)
       clearTimeout(retryTimer)
       unwatch?.()
       listeners.clear()

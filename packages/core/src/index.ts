@@ -10,7 +10,7 @@ export { and, createdByAny, eq, gt, gte, lt, lte, or, renderWhere, startsWith, t
 export { DEFAULT_CACHE_TTL, PAGE_SIZE, headBlock, fetchAll, fetchMatching, fetchMatchingMany, readCacheFor, type FetchOptions, type FetchResult } from "./query"
 export { covers, createReadCache, creatorScope, type CacheHit, type KeyValueStore, type ReadCache, type ReadSpec } from "./cache"
 export { RateLimitedError, meter, type ReadBudget } from "./budget"
-export { buildTrust, partitionByTrust, resolveTrust } from "./trust"
+export { buildTrust, isSelfRegistration, partitionByTrust, resolveTrust, type TrustRead } from "./trust"
 export { aggregate, type AggregateOptions } from "./aggregate"
 export { findConsensus, findDisputes } from "./disputes"
 export { later, supersede } from "./supersede"

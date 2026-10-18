@@ -167,6 +167,11 @@ function mockChain() {
       entities.push(e)
       return e
     },
+    /** Deletes an entity (or lets it expire) in a new block. */
+    remove(key: Hex) {
+      head += 1n
+      entities.splice(entities.findIndex((e) => e.key === key), 1)
+    },
     limit(seconds: number) {
       limitedFor = seconds
     },
@@ -225,7 +230,10 @@ const landingStat = { where: [resultTypes, eq("election", E)] }
 
 /* ---------- Harness ---------- */
 
-type Live = { onEntityCreated?: (e: { entityKey: Hex; owner: Address; blockNumber: bigint }) => void }
+type Live = {
+  onEntityCreated?: (e: { entityKey: Hex; owner: Address; blockNumber: bigint }) => void
+  onEntityDeleted?: (e: { entityKey: Hex }) => void
+}
 
 function setup(options: CollateOptions = {}) {
   const chain = mockChain()
@@ -242,7 +250,11 @@ function setup(options: CollateOptions = {}) {
   const emit = (e: Ent) => {
     for (const w of watchers) w.onEntityCreated?.({ entityKey: e.key, owner: e.creator, blockNumber: e.createdAt })
   }
-  return { chain, data, clients, make, emit }
+  const emitDeleted = (e: Ent) => {
+    chain.remove(e.key)
+    for (const w of watchers) w.onEntityDeleted?.({ entityKey: e.key })
+  }
+  return { chain, data, clients, make, emit, emitDeleted }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -420,6 +432,79 @@ describe("query budget: live updates", () => {
     expect(chain.count()).toBe(before + 2)
     expect(handle.getState().trust!.members.has(O4)).toBe(true)
     expect(creators(handle.getState().rows)).toEqual([O1, O2, O3, O4])
+  })
+})
+
+describe("self-registration: the Open sandbox", () => {
+  const T1 = addr(0x71)
+  const T2 = addr(0x72)
+  const FORGER = addr(0x73)
+  const registration = (observer: Address, alias = "Tester") => [{ type: "sandbox_registration", election: E, observer }, { alias }] as const
+  const sandboxPanel = (): Panel =>
+    resultsPanel(CA, {
+      trust: {
+        ...trustFor(CA),
+        selfRegistration: { listQuery: [eq("type", "sandbox_registration"), eq("election", E)], addressField: "observer" },
+      },
+    })
+
+  it("switching from Group A to the sandbox costs one query: the registrations", async () => {
+    const { chain, clients, data } = setup()
+    chain.add(T1, ...registration(T1, "Tester 0071"))
+    chain.add(FORGER, ...registration(O4)) // names someone else: grants nothing
+    data.result(T1, "U4", 60)
+    await fetchAll(clients.http, electionReads([CA, CB]))
+    await loaded(createPanel(clients, resultsPanel(CA)))
+    const sandbox = await loaded(createPanel(clients, sandboxPanel()))
+    expect(chain.count()).toBe(3)
+    expect(chain.queries.at(-1)).toContain("sandbox_registration")
+    expect([...sandbox.trust!.members.keys()].sort()).toEqual([O1, O2, O3, T1])
+    expect(sandbox.trust!.members.get(T1)).toMatchObject({ selfRegistered: true, label: "Tester 0071", via: T1 })
+    expect(creators(sandbox.rows)).toEqual([O1, O2, O3, T1])
+    expect(creators(sandbox.ignored)).toEqual([O4, STRANGER])
+  })
+
+  it("a new registration adds the member live: one check, then trust and results read fresh", async () => {
+    const { chain, clients, data, emit } = setup()
+    const handle = createPanel(clients, sandboxPanel())
+    await loaded(handle)
+    const before = chain.count()
+    emit(chain.add(T2, ...registration(T2)))
+    await sleep(900)
+    expect(chain.count()).toBe(before + 4) // the check, then accreditations, registrations and results
+    expect(handle.getState().trust!.members.get(T2)?.selfRegistered).toBe(true)
+    // From then on the member's results arrive like any trusted observer's: one re-read per burst.
+    emit(data.result(T2, "U4", 61))
+    await sleep(400)
+    expect(chain.count()).toBe(before + 5)
+    expect(creators(handle.getState().rows)).toContain(T2)
+  })
+
+  it("a forged registration costs one check and changes nothing; that wallet is not checked again", async () => {
+    const { chain, clients, emit } = setup()
+    const handle = createPanel(clients, sandboxPanel())
+    await loaded(handle)
+    const before = chain.count()
+    emit(chain.add(FORGER, ...registration(O4)))
+    await sleep(700)
+    expect(chain.count()).toBe(before + 1)
+    expect(handle.getState().trust!.members.has(O4)).toBe(false)
+    emit(chain.add(FORGER, ...registration(FORGER)))
+    await sleep(400)
+    expect(chain.count()).toBe(before + 1)
+  })
+
+  it("a deleted or expired registration removes the member, as a revoked accreditation does", async () => {
+    const { chain, clients, data, emitDeleted } = setup()
+    const own = chain.add(T1, ...registration(T1))
+    data.result(T1, "U4", 60)
+    const handle = createPanel(clients, sandboxPanel())
+    await loaded(handle)
+    expect(handle.getState().trust!.members.has(T1)).toBe(true)
+    emitDeleted(own)
+    await sleep(700)
+    expect(handle.getState().trust!.members.has(T1)).toBe(false)
+    expect(creators(handle.getState().ignored)).toContain(T1)
   })
 })
 

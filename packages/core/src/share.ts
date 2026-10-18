@@ -26,6 +26,11 @@ export function decodePanel(encoded: string): Panel {
   if (panel.view !== "table" && panel.view !== "bar") panel.view = "table"
   panel.title = typeof panel.title === "string" ? panel.title : "Untitled panel"
   if (panel.quorum !== undefined && !(Number.isInteger(panel.quorum) && panel.quorum >= 1)) delete panel.quorum
+  const self = panel.trust?.selfRegistration
+  // A malformed open list is dropped rather than half-applied: without it the panel trusts less, never more.
+  if (self !== undefined && !(Array.isArray(self?.listQuery) && self.listQuery.length > 0 && typeof self.addressField === "string" && self.addressField)) {
+    delete panel.trust!.selfRegistration
+  }
   return panel
 }
 

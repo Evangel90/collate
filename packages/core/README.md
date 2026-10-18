@@ -77,7 +77,13 @@ function Totals() {
 type Panel = {
   title: string
   query: Where[]            // every predicate must hold
-  trust?: { rootCreators: Address[]; listQuery: Where[]; addressField: string; labelField?: string }
+  trust?: {
+    rootCreators: Address[]
+    listQuery: Where[]
+    addressField: string
+    labelField?: string
+    selfRegistration?: { listQuery: Where[]; addressField: string; labelField?: string } // see below
+  }
   supersedeField?: string   // attribute naming an earlier entity (same creator) this one replaces
   groupBy?: string          // attribute, or $creator / $owner / $key
   sum?: string[]
@@ -96,6 +102,26 @@ type Where =
   | { op: "or"; any: Where[] }
   | { op: "and"; all: Where[] }
 ```
+
+## Trust
+
+`trust` resolves the wallets whose entities count. A wallet is trusted when an entity matching `listQuery`, **created by one of `rootCreators`**, names it in `addressField`. The test is the chain-set `$creator`, so a list entity written by anyone else grants nothing.
+
+`selfRegistration` adds an open list that anyone may join, for a sandbox or a demo:
+
+```ts
+trust: {
+  rootCreators: [coordinator],
+  listQuery: [eq("type", "accreditation"), eq("election", id)],
+  addressField: "observer",
+  selfRegistration: {
+    listQuery: [eq("type", "sandbox_registration"), eq("election", id)], // read from any creator
+    addressField: "observer",
+  },
+}
+```
+
+A registration grants trust **only to the wallet that created it**: its `addressField` must equal its `$creator`, so nobody can register someone else. Self-registered members join the root-vouched ones with `via` set to the wallet itself and `selfRegistered: true` on their `TrustMember`; a wallet a root vouched for keeps that grant. Registrations that expire or are deleted drop out on the next read, as list entities do. It costs one extra query, pinned to the root list's block so both lists are one snapshot. Live, a new wallet's first entity is checked against the registration query (at most one query a minute, and each wallet once), and a valid registration re-reads trust and results.
 
 ## Consensus
 

@@ -73,6 +73,59 @@ describe("trust", () => {
   })
 })
 
+describe("trust: self-registration", () => {
+  const D = "0x00000000000000000000000000000000000000dd" as Address
+  const config = {
+    rootCreators: [ROOT],
+    listQuery: [eq("type", "accreditation")],
+    addressField: "observer",
+    selfRegistration: { listQuery: [eq("type", "sandbox_registration")], addressField: "observer" },
+  }
+  const accredit = (who: Address) => row(ROOT, { type: "accreditation", observer: who }, 1n, { alias: "Observer" })
+  const register = (creator: Address, named: string, alias = "Tester") => row(creator, { type: "sandbox_registration", observer: named }, 2n, { alias })
+
+  it("accepts a registration created by the wallet it names, marked as self-registered", () => {
+    const own = register(B, B.toUpperCase().replace("0X", "0x"), "Tester 00bb")
+    const trust = buildTrust(config, [], [own])
+    expect(trust.members.get(B)).toMatchObject({ address: B, via: B, grantKey: own.key, label: "Tester 00bb", selfRegistered: true })
+  })
+
+  it("rejects a registration naming another wallet", () => {
+    const trust = buildTrust(config, [], [register(C, B), register(C, "not-an-address")])
+    expect(trust.members.size).toBe(0)
+  })
+
+  it("ignores registrations when the config has no open list", () => {
+    const { selfRegistration: _, ...closed } = config
+    expect(buildTrust(closed, [], [register(B, B)]).members.size).toBe(0)
+  })
+
+  it("joins root-vouched members, and a vouched wallet keeps its accreditation", () => {
+    const trust = buildTrust(config, [accredit(A)], [register(A, A), register(B, B)])
+    expect([...trust.members.keys()].sort()).toEqual([A, B])
+    expect(trust.members.get(A)).toMatchObject({ via: ROOT, label: "Observer" })
+    expect(trust.members.get(A)?.selfRegistered).toBeUndefined()
+    expect(trust.members.get(B)?.selfRegistered).toBe(true)
+  })
+
+  it("drops a registration once it is gone from the list, as an expired or deleted accreditation is", () => {
+    const own = register(B, B)
+    expect(buildTrust(config, [accredit(A)], [own]).members.has(B)).toBe(true)
+    // Expired and deleted entities are no longer returned by Arkiv, so the next read omits them.
+    expect(buildTrust(config, [accredit(A)], []).members.has(B)).toBe(false)
+  })
+
+  it("splits rows by the joined set, so forged and unregistered writers stay in the ignored list", () => {
+    const trust = buildTrust(config, [accredit(A)], [register(B, B), register(C, D)])
+    const { trusted, ignored } = partitionByTrust(
+      [result(A, "LA-01", 1, 1), result(B, "LA-01", 1, 1), result(C, "LA-01", 9, 9), result(D, "LA-01", 9, 9)],
+      trust,
+    )
+    expect(trusted.map((r) => r.creator)).toEqual([A, B])
+    expect(ignored.map((r) => r.creator)).toEqual([C, D])
+  })
+})
+
 describe("supersede", () => {
   it("replaces an original with a correction from the same creator and keeps the original visible", () => {
     const original = result(A, "LA-01", 10, 20)
@@ -279,6 +332,31 @@ describe("share", () => {
     const encoded = encodePanel(panel)
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(decodePanel(encoded)).toEqual(panel)
+  })
+
+  it("round-trips a trust config with a self-registration list", () => {
+    const panel: Panel = {
+      title: "Sandbox",
+      query: [eq("type", "unit_result")],
+      trust: {
+        rootCreators: [ROOT],
+        listQuery: [eq("type", "accreditation"), eq("election", "e")],
+        addressField: "observer",
+        selfRegistration: { listQuery: [eq("type", "sandbox_registration"), eq("election", "e")], addressField: "observer" },
+      },
+      view: "table",
+    }
+    expect(decodePanel(encodePanel(panel))).toEqual(panel)
+  })
+
+  it("drops a malformed self-registration list rather than trusting more", () => {
+    const panel = {
+      title: "x",
+      query: [eq("type", "a")],
+      trust: { rootCreators: [ROOT], listQuery: [eq("type", "b")], addressField: "observer", selfRegistration: { listQuery: [], addressField: "observer" } },
+      view: "table",
+    } as Panel
+    expect(decodePanel(encodePanel(panel)).trust?.selfRegistration).toBeUndefined()
   })
 
   it("drops a quorum that is not a whole number of at least 1", () => {
