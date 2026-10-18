@@ -9,3 +9,9 @@ dist/
 .netlify
 scripts/.seed-state.json
 .claude/worktrees/
+
+# Pitch video pipeline and renders (Remotion + Playwright screencast)
+video/
+
+# Brand assets (logo renders)
+brand/
