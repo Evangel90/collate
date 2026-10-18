@@ -89,3 +89,11 @@ Kept during the build, newest last. Smooth paths are logged with the same detail
 - Steps to reproduce: `npm run seed` against a fresh election id with the 72-unit demo in `scripts/demo-data.ts`; the coordinator step logs `one batch was refused (...); splitting`.
 - Workaround: the seed tries one batch first and falls back to atomic chunks of 15. The cost is that an election is briefly visible with only some of its units; the app tolerates this because it computes "units with no result" from whatever units exist.
 - Suggested fix: document the maximum operations or bytes per `executeBatch`, and surface the limit in the error (or let the SDK split a batch and report that it is no longer atomic).
+
+### 12. The Arkiv MCP serves the rules exactly, but its search does not know the hub's "Nobody built this yet" list
+- Surface: Arkiv MCP (Claude Code plugin `arkiv`), tools `read_knowledge` and `search_knowledge`, used on 17 Oct 2026
+- Expected: the event's rules to be quotable exactly, and a search for unbuilt ideas or wanted tools to surface the gap list the Arkiv team publishes on https://hub.arkiv.network/ecosystem.
+- Actual: `read_knowledge("devfolio/rules")`, `devfolio/scoring-rubric` and `devfolio/submission-checklist` returned the canonical files pinned to commit `4f912d1fa595125621962c053a9f36fdcfca5a54`, with a digest, which made the rubric easy to check against (smooth). `search_knowledge("ideas not yet built missing tools gaps wanted Global Tour Stop")` returned 0 results, and `search_knowledge("devfolio ideas tooling wishlist aggregation dashboard")` returned only the rubric and the event README. The hub's "Nobody built this yet" section (five gaps, including "Query-to-Dashboard Studio", which Collate Studio answers) is not in the MCP's knowledge; we found it only through a link shared by a person.
+- Steps to reproduce: with the Arkiv MCP connected, call `search_knowledge` with either query above, then open https://hub.arkiv.network/ecosystem and scroll to "Nobody built this yet".
+- Workaround: read the hub page directly.
+- Suggested fix: index the hub's ecosystem page, or at least its gap list, in the MCP knowledge base, so builders and agents planning an entry find what the Arkiv team wants built.
