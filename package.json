@@ -18,7 +18,8 @@
     "wallets": "tsx --tsconfig scripts/tsconfig.json scripts/wallets.ts",
     "seed": "tsx --tsconfig scripts/tsconfig.json scripts/seed.ts",
     "verify": "tsx --tsconfig scripts/tsconfig.json scripts/verify.ts",
-    "replay": "tsx --tsconfig scripts/tsconfig.json scripts/replay.ts"
+    "replay": "tsx --tsconfig scripts/tsconfig.json scripts/replay.ts",
+    "accredit": "tsx --tsconfig scripts/tsconfig.json scripts/accredit.ts"
   },
   "devDependencies": {
     "@types/node": "22.18.0",

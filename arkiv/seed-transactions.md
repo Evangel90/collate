@@ -71,3 +71,4 @@ The current demo election. `npm run seed` appends one row per transaction below:
 | Observer 12 | 9 unit results | [0x20fd8390…](https://tiramisu.explorer.arkiv.network/tx/0x20fd8390e4854a0155f213a65aa9359210c513b96e7fd692f35ab44cb74285fc) |
 | Observer 03 | correction of KN-FAG-06-003 | [0x4e44ff2f…](https://tiramisu.explorer.arkiv.network/tx/0x4e44ff2f358fd18db29c35d75dd11fc504e7d2b5045e666bb2043ca4d8dae348) |
 | Unaccredited | inflated result for LA-IKJ-03-001 | [0x33d07c87…](https://tiramisu.explorer.arkiv.network/tx/0x33d07c87162c11efe51f06cca9098d211147a590b6e303bb0d0d4b7f0b849b29) |
+| Coordinator A | accreditation of Observer 13 (0x36a95c93…, added for live testing) | [0xc1d960e1…](https://tiramisu.explorer.arkiv.network/tx/0xc1d960e1448ec068fb670aa3cc3b2fba2e3a3aafa13bc1b81370b8a0982b5f30) |
