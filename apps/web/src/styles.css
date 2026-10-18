@@ -379,9 +379,25 @@ footer.site { margin-top: 48px; padding: 20px 0 8px; border-top: 1px solid var(-
 .off-row-head { padding-top: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .off-where { color: var(--ink); }
 
+.offer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.offer-card { display: grid; gap: 8px; align-content: start; }
+.offer-card h3 { font-size: 19px; font-weight: 680; letter-spacing: -0.015em; }
+.offer-card > p:not(.kicker) { color: var(--ink-2); font-size: 14.5px; }
+.offer-card .row { margin-top: 4px; }
+.compare { padding: 6px 20px; }
+.compare-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.5fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--ink-2); }
+.compare-row:last-child { border-bottom: none; }
+.compare-row b { color: var(--ink); font-weight: 620; }
+.compare-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding-bottom: 10px; }
+.compare-collate { color: var(--ink); padding-left: 12px; border-left: 3px solid var(--good); }
+.compare-head .compare-collate, .compare-head span:last-child { color: var(--good); }
 @media (max-width: 960px) {
   .landing-hero, .engine-grid { grid-template-columns: minmax(0, 1fr); }
-  .consensus-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+  .consensus-grid, .offer-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+  .compare-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .compare-head { display: none; }
+  .compare-row span[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; }
+  .compare-collate { margin-top: 4px; }
   .engine-diagram { grid-template-columns: minmax(0, 1fr); }
   .engine-arrow { justify-self: center; width: 2px; height: 28px; margin: 6px 0; }
   .engine-arrow::after { right: auto; top: auto; left: -4px; bottom: -1px; border: 5px solid transparent; border-top: 7px solid var(--border-strong); border-bottom: 0; }

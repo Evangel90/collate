@@ -14,6 +14,14 @@ Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Re
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
 - **Engine:** [`packages/core`](packages/core) (`@collate/core`)
 
+## Three ways in
+
+- **For the public: watch and verify the count.** Pick which observer group you trust, follow totals by state, LGA and ward live, see which units are certified, contested or pending, and open any number to find the wallet that posted it. No wallet or login needed.
+- **For observer groups: run a committee.** Create an election and its polling units, accredit your observers' wallets and share one link. Observers post from their own wallets; mistakes become public corrections, never silent edits.
+- **For builders: turn any Arkiv data into a live dashboard.** Collate Studio works on any project's entities, not just elections, and the same engine, `@collate/core`, drops into your own app.
+
+What makes it different: no single party, including us, can edit, hide or switch off what observers reported. Results are readonly on Arkiv, a unit counts only when the observers who reported it agree, and every viewer recomputes the totals from Arkiv in their own browser.
+
 ## The problem
 
 When an official results portal stalls, the public loses sight of the count exactly when trust matters most. In Nigeria's February 2023 presidential election, less than 30% of polling-unit results were on the official IReV portal by 6 pm the day after the vote; by 9:30 pm on 28 February, 79,927 of 176,846 (45.19%) were up. Independent observer groups collect their own unit results but publish them on websites and social accounts that can be throttled, taken down or dismissed as unverifiable, and journalists have no way to prove a figure was not changed later.
