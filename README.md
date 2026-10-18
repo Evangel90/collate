@@ -12,7 +12,7 @@ Built for **Arkiv: Global Tour Stop** (9–18 Oct 2026). Tracks: **Censorship Re
 - **Schema (data contract):** [`arkiv/schema.md`](arkiv/schema.md)
 - **Friction report:** [`arkiv/friction.md`](arkiv/friction.md)
 - **Seed transactions on the explorer:** [`arkiv/seed-transactions.md`](arkiv/seed-transactions.md)
-- **Engine:** [`packages/core`](packages/core) (`collate-core`)
+- **Engine:** [`collate-core` on npm](https://www.npmjs.com/package/collate-core) (`npm install collate-core`), source in [`packages/core`](packages/core)
 
 ## Three ways in
 

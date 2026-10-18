@@ -8,6 +8,7 @@ import { resultsQuery } from "../model/panels"
 const FAUCET = "https://hub.arkiv.network/faucet"
 const HUB_ECOSYSTEM = "https://hub.arkiv.network/ecosystem"
 const CORE_ON_GITHUB = "https://github.com/Evangel90/collate/tree/main/packages/core"
+const CORE_ON_NPM = "https://www.npmjs.com/package/collate-core"
 
 /**
  * Scrolls to a section on this page. Plain `#id` links would not work: the hash holds the route.
@@ -575,11 +576,17 @@ function Engine() {
         <div className="card engine-code">
           <CardTitle icon="edit">A live, trust-filtered panel in one call</CardTitle>
           <pre className="code landing-code">
+            <code>npm install collate-core</code>
+          </pre>
+          <pre className="code landing-code">
             <code>{SNIPPET}</code>
           </pre>
           <div className="row">
+            <a className="btn btn-primary btn-small" href={CORE_ON_NPM} target="_blank" rel="noreferrer">
+              collate-core on npm ↗
+            </a>
             <a className="btn btn-small" href={CORE_ON_GITHUB} target="_blank" rel="noreferrer">
-              packages/core on GitHub ↗
+              Source on GitHub ↗
             </a>
             <span className="muted">MIT licensed. Pure functions after the fetch, unit-tested.</span>
           </div>
