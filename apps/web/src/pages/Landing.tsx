@@ -73,21 +73,23 @@ function Hero() {
         </p>
       </div>
 
-      <aside className="card hero-aside" aria-labelledby="gap-h">
-        <div>
-          <p className="kicker">One example: Nigeria, February 2023</p>
-          <h2 id="gap-h" className="hero-stat">
-            Under 30%
-          </h2>
-          <p className="small">of polling-unit results were on the official IReV portal the day after the presidential vote.</p>
-        </div>
-        <div className="meters">
-          <Meter label="By 6 pm, the next day" value={30} display="< 30%" />
-          <Meter label="By 9:30 pm, three days later" value={45.19} display="45.19%" />
-          <p className="muted">79,927 of 176,846 polling-unit results were up by then.</p>
-        </div>
+      <div className="hero-side">
+        <aside className="card hero-aside" aria-labelledby="gap-h">
+          <div>
+            <p className="kicker">The problem · Nigeria, February 2023</p>
+            <h2 id="gap-h" className="hero-stat">
+              Under 30%
+            </h2>
+            <p className="small">of polling-unit results were on the official IReV portal the day after the presidential vote.</p>
+          </div>
+          <div className="meters">
+            <Meter label="By 6 pm, the next day" value={30} display="< 30%" />
+            <Meter label="By 9:30 pm, three days later" value={45.19} display="45.19%" />
+            <p className="muted">79,927 of 176,846 polling-unit results were up by then.</p>
+          </div>
+        </aside>
         <LiveStat />
-      </aside>
+      </div>
     </section>
   )
 }
@@ -149,26 +151,28 @@ function useDemoStat(): Stat {
 function LiveStat() {
   const stat = useDemoStat()
   return (
-    <div className="live-stat">
+    <section className="card live-stat" aria-labelledby="live-h">
       <div className="live-stat-head">
-        <span className={`pill ${stat.status === "ready" ? "pill-live" : "pill-off"}`}>{stat.status === "ready" ? "Live on Arkiv" : "Arkiv"}</span>
-        {stat.status === "ready" && <span className="muted mono">as of block {stat.block.toLocaleString("en")}</span>}
+        <p className="kicker" id="live-h">Collate's answer · our demo election</p>
+        <span className={`pill ${stat.status === "ready" ? "pill-live" : "pill-off"}`}>{stat.status === "ready" ? "Live" : "Arkiv"}</span>
       </div>
-      <p className="small">On Collate, a result is public the moment it is posted.</p>
       {stat.status === "loading" ? (
-        <p className="muted">Counting the demo election's results…</p>
+        <p className="muted">Counting results on Arkiv…</p>
       ) : stat.status === "error" ? (
         <p className="muted">{stat.message}</p>
       ) : (
-        <p className="live-stat-body">
-          <b>{stat.results.toLocaleString("en")}</b>
-          <span>results posted so far in the demo election, by {stat.wallets} observer wallets.</span>
-        </p>
+        <>
+          <p className="live-stat-body">
+            <b>{stat.results.toLocaleString("en")}</b>
+            <span>results posted by {stat.wallets} test observers, each public the moment it was posted.</span>
+          </p>
+          <p className="muted">Counted just now from Arkiv, block {stat.block.toLocaleString("en")}.</p>
+        </>
       )}
       <a className="link-btn small" href={href("/results")}>
-        See which ones count →
+        See the results →
       </a>
-    </div>
+    </section>
   )
 }
 

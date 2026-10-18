@@ -311,7 +311,8 @@ footer.site { margin-top: 48px; padding: 20px 0 8px; border-top: 1px solid var(-
 .meter-head b { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .meter-track { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .meter-track > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--critical), color-mix(in srgb, var(--critical) 55%, #e8a33d)); }
-.live-stat { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+.hero-side { display: grid; gap: 16px; min-width: 0; }
+.live-stat { display: grid; gap: 8px; }
 .live-stat-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .live-stat-body { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: var(--ink-2); }
 .live-stat-body > b { font-size: 30px; font-weight: 750; letter-spacing: -0.03em; color: var(--ink); font-variant-numeric: tabular-nums; }
