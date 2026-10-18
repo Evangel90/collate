@@ -64,6 +64,12 @@ function Hero() {
           </a>
         </div>
         <p className="muted">Viewing needs no wallet and no login.</p>
+        <p className="row">
+          <span>Just want to try posting? Join the Open sandbox from the Observer page.</span>
+          <a className="btn btn-small" href={href("/observe")}>
+            Join the Open sandbox →
+          </a>
+        </p>
       </div>
 
       <aside className="card hero-aside" aria-labelledby="gap-h">

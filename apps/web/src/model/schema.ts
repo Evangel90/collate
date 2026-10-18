@@ -67,6 +67,9 @@ export const EXPIRY = {
   unit: () => ExpirationTime.fromDays(90),
   /** A lease: election close + 7 days. The coordinator extends it while counting continues. */
   accreditation: (closesAt: number) => ExpirationTime.atDate(new Date((closesAt + 7 * DAY) * 1000)),
+  /** Like an accreditation, election close + 7 days (at least a day from now, should the election have closed). */
+  sandbox_registration: (closesAt: number) =>
+    ExpirationTime.atDate(new Date(Math.max(closesAt + 7 * DAY, Math.floor(Date.now() / 1000) + DAY) * 1000)),
   unit_result: () => ExpirationTime.fromDays(30),
   correction: () => ExpirationTime.fromDays(30),
 }
@@ -103,6 +106,20 @@ export function accreditationEntity(election: string, observer: string, alias: s
     ...json({ alias }),
     attributes: { type: "accreditation", election, observer: observer.toLowerCase() },
     expires: EXPIRY.accreditation(closesAt),
+    flags: { readonly: true },
+  }
+}
+
+/**
+ * A wallet joining the Open sandbox. Created by the observer's own wallet, and valid only for it:
+ * viewers count it only when `observer` equals the entity's `$creator`. The alias is public and
+ * synthetic.
+ */
+export function sandboxRegistrationEntity(election: string, observer: string, alias: string, closesAt: number): CreateEntityParameters {
+  return {
+    ...json({ alias }),
+    attributes: { type: "sandbox_registration", election, observer: observer.toLowerCase() },
+    expires: EXPIRY.sandbox_registration(closesAt),
     flags: { readonly: true },
   }
 }

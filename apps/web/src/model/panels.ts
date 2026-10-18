@@ -2,12 +2,22 @@
 import { eq, gt, or, v, type Panel, type TrustConfig, type Where } from "@collate/core"
 import { PARTY_FIELDS } from "./schema"
 
-export function trustFor(election: string, coordinator: string): TrustConfig {
+/**
+ * The coordinator's accreditations; with `sandbox`, also every wallet that registered itself for
+ * the election (the Open sandbox). A registration counts only for the wallet that created it.
+ */
+export function trustFor(election: string, coordinator: string, sandbox = false): TrustConfig {
   return {
     rootCreators: [coordinator as `0x${string}`],
     listQuery: [eq("type", "accreditation"), eq("election", election)],
     addressField: "observer",
+    ...(sandbox ? { selfRegistration: { listQuery: sandboxQuery(election), addressField: "observer" } } : {}),
   }
+}
+
+/** Q10: Open sandbox registrations for the election, from any wallet. */
+export function sandboxQuery(election: string): Where[] {
+  return [eq("type", "sandbox_registration"), eq("election", election)]
 }
 
 const resultTypes = or(eq("type", "unit_result"), eq("type", "correction"))
@@ -34,11 +44,11 @@ export function setupQuery(election: string): Where[] {
  * Q4 plus Q8: results and corrections, trust-filtered by the chosen coordinator. A unit counts
  * only when at least `quorum` trusted observers agree and they are a majority of those who reported.
  */
-export function resultsPanel(election: string, coordinator: string, groupBy: "state" | "lga" | "ward", quorum?: number): Panel {
+export function resultsPanel(election: string, coordinator: string, groupBy: "state" | "lga" | "ward", quorum?: number, sandbox = false): Panel {
   return {
     title: `Votes by ${groupBy.toUpperCase() === "LGA" ? "LGA" : groupBy}`,
     query: resultsQuery(election),
-    trust: trustFor(election, coordinator),
+    trust: trustFor(election, coordinator, sandbox),
     supersedeField: "corrects",
     disputeKey: "unit_code",
     groupBy,
@@ -59,21 +69,21 @@ export function statePanel(election: string, coordinator: string, state: string)
 }
 
 /** Q6: results submitted after a unix time (range on a u64 attribute). */
-export function latestPanel(election: string, coordinator: string, sinceSeconds: number): Panel {
+export function latestPanel(election: string, coordinator: string, sinceSeconds: number, sandbox = false): Panel {
   return {
     title: "Latest submissions",
     query: [resultTypes, eq("election", election), gt("submitted_at", v.u64(sinceSeconds))],
-    trust: trustFor(election, coordinator),
+    trust: trustFor(election, coordinator, sandbox),
     view: "table",
   }
 }
 
 /** Q7: units with rejected ballots above a threshold. */
-export function suspiciousPanel(election: string, coordinator: string, threshold: number): Panel {
+export function suspiciousPanel(election: string, coordinator: string, threshold: number, sandbox = false): Panel {
   return {
     title: `Units with more than ${threshold} rejected ballots`,
     query: [resultTypes, eq("election", election), gt("rejected", v.u64(threshold))],
-    trust: trustFor(election, coordinator),
+    trust: trustFor(election, coordinator, sandbox),
     supersedeField: "corrects",
     view: "table",
   }

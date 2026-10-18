@@ -18,19 +18,54 @@ type Proof = { title: string; rows: Row[] }
 const EXTEND_DAYS = 30
 const BLOCKS_PER_DAY = 43_200n // 2-second blocks
 
+/** A trust option: an observer group, or the Open sandbox (Group A's setup and accreditations plus self-registrations). */
+type Choice = Coordinator & { sandbox?: boolean }
+
+const SANDBOX_ID = "sandbox"
+const groupA = deployment.coordinators[0]!
+const SANDBOX_WARNING = "Anyone can join to try posting; don't treat these totals as vetted."
+
 /**
  * Optional `election` and `coordinator` URL params let anyone watch their own election, e.g.
  * `#/results?election=my-vote&coordinator=0x…`. Without them the page shows the demo, as before.
+ * `group=sandbox` (or `a`, `b`) opens that option; the Open sandbox exists for the demo election only.
  */
-function fromParams(params: URLSearchParams | undefined): { election: string; coordinators: Coordinator[]; urlId?: string } {
+function fromParams(params: URLSearchParams | undefined): { election: string; coordinators: Choice[]; urlId?: string } {
   const election = params?.get("election")?.trim() || deployment.election
+  const sandbox: Choice[] =
+    election === deployment.election ? [{ id: SANDBOX_ID, name: "Open sandbox", address: groupA.address, observers: [], sandbox: true }] : []
+  const group = params?.get("group")?.trim().toLowerCase()
   const wanted = params?.get("coordinator")?.trim().toLowerCase()
-  if (!wanted || !isAddress(wanted)) return { election, coordinators: deployment.coordinators }
-  const known = deployment.coordinators.find((c) => c.address.toLowerCase() === wanted)
-  if (known) return { election, coordinators: deployment.coordinators, urlId: known.id }
-  const custom: Coordinator = { id: "custom", name: "Custom", address: wanted, observers: [] }
-  return { election, coordinators: [...deployment.coordinators, custom], urlId: custom.id }
+  let coordinators: Choice[] = [...deployment.coordinators, ...sandbox]
+  let urlId: string | undefined
+  if (wanted && isAddress(wanted)) {
+    const known = deployment.coordinators.find((c) => c.address.toLowerCase() === wanted)
+    if (known) urlId = known.id
+    else {
+      const custom: Choice = { id: "custom", name: "Custom", address: wanted, observers: [] }
+      coordinators = [...deployment.coordinators, custom, ...sandbox]
+      urlId = custom.id
+    }
+  }
+  if (group && coordinators.some((c) => c.id === group)) urlId = group
+  return { election, coordinators, urlId }
 }
+
+/**
+ * Self-registered aliases seen in this tab, so a sandbox observer keeps its name in the group views
+ * too (their trust lists do not include registrations, and reading them there would cost a query).
+ */
+const registrants = new Map<string, string>()
+
+/** The name shown for a wallet: a known demo alias, else a self-registered alias, marked as such. */
+function observerName(address: string): string | undefined {
+  const known = nameOf(address)
+  if (known) return known
+  const alias = registrants.get(address.toLowerCase())
+  return alias !== undefined ? `${alias} (self-registered)` : undefined
+}
+
+const who = (r: Row) => observerName(r.creator) ?? r.creator.slice(0, 10)
 
 export function Results({ params }: { params?: URLSearchParams } = {}) {
   const query = params?.toString() ?? ""
@@ -41,6 +76,7 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
     if (urlId) setCoordinatorId(urlId)
   }, [urlId])
   const coordinator = coordinators.find((c) => c.id === coordinatorId) ?? coordinators[0]!
+  const sandbox = Boolean(coordinator.sandbox)
   const [groupBy, setGroupBy] = useState<GroupBy>(() => (prefs.get("groupBy") as GroupBy) ?? "state")
   const [view, setView] = useState<"chart" | "table">("chart")
   const [proof, setProof] = useState<Proof | undefined>()
@@ -51,18 +87,26 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
   // The viewer's bar for consensus; until they pick one, the coordinator's recommendation, else 1.
   const [quorumChoice, setQuorumChoice] = useState<number | undefined>()
   const quorum = quorumChoice ?? info.quorum ?? 1
-  // What is read from Arkiv depends only on the election and the coordinator. Grouping and quorum
+  // What is read from Arkiv depends only on the election and the trust option. Grouping and quorum
   // are applied in the browser to the rows already read, so changing them costs no queries.
-  const fetched = useMemo(() => resultsPanel(election, coordinator.address, "state"), [election, coordinator.address])
+  const fetched = useMemo(() => resultsPanel(election, coordinator.address, "state", undefined, sandbox), [election, coordinator.address, sandbox])
   const { state: raw } = usePanel(collate, fetched)
   // `panel` is what the page shows and links to.
-  const panel = useMemo(() => resultsPanel(election, coordinator.address, groupBy, quorum), [election, coordinator.address, groupBy, quorum])
+  const panel = useMemo(
+    () => resultsPanel(election, coordinator.address, groupBy, quorum, sandbox),
+    [election, coordinator.address, groupBy, quorum, sandbox],
+  )
   const state = useMemo(() => raw && { ...raw, ...computePanel(panel, raw.rows) }, [raw, panel])
   const parties = info.parties
+  const members = [...(state?.trust?.members.values() ?? [])]
+  const selfRegistered = members.filter((m) => m.selfRegistered)
+  // Remember sandbox aliases for this tab, before the cards below name anyone.
+  for (const m of selfRegistered) registrants.set(m.address, m.label?.trim() || `Tester ${m.address.slice(2, 6)}`)
 
   const chooseCoordinator = (id: string) => {
     setCoordinatorId(id)
-    if (id !== "custom") prefs.set("coordinator", id) // a linked coordinator is not a lasting preference
+    // A linked coordinator is not a lasting preference, and the sandbox should not become the default view.
+    if (id !== "custom" && id !== SANDBOX_ID) prefs.set("coordinator", id)
   }
   const chooseGroup = (g: GroupBy) => {
     setGroupBy(g)
@@ -108,24 +152,43 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
             <CardTitle icon="shield" id="trust-h">Whose observers do you trust?</CardTitle>
             <p>Trust comes from the coordinator wallet that created each accreditation ($creator), never from a field anyone can write.</p>
           </div>
-          <div className="seg" role="group" aria-label="Coordinator">
+          <div className="seg" role="group" aria-label="Whose observers to trust">
             {coordinators.map((c) => (
-              <button key={c.id} type="button" aria-pressed={c.id === coordinator.id} onClick={() => chooseCoordinator(c.id)}>
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={c.id === coordinator.id}
+                onClick={() => chooseCoordinator(c.id)}
+                title={c.sandbox ? `${groupA.name}'s observers plus anyone who joined. ${SANDBOX_WARNING}` : undefined}
+              >
                 {c.name}
               </button>
             ))}
           </div>
         </div>
+        {sandbox && (
+          <p className="notice notice-warn sandbox-note">
+            <b>Open sandbox.</b> {SANDBOX_WARNING} It counts {groupA.name}'s accredited observers plus every wallet that registered
+            itself for this election. A registration counts only when the wallet it names created it, so nobody can join on
+            someone else's behalf. <a href={href("/observe")}>Join from the Observer page</a>.
+          </p>
+        )}
         <div className="card-foot">
           <span>
-            {state?.trust ? `${state.trust.members.size} accredited observers` : "Resolving accreditations…"} · coordinator{" "}
+            {!state?.trust
+              ? "Resolving accreditations…"
+              : sandbox
+                ? `${members.length} observers: ${members.length - selfRegistered.length} accredited by ${groupA.name}, ${selfRegistered.length} self-registered`
+                : `${state.trust.members.size} accredited observers`}{" "}
+            · coordinator{" "}
             <a href={collate.explorer.address(coordinator.address)} target="_blank" rel="noreferrer" className="mono">
               {coordinator.address.slice(0, 10)}…
             </a>
           </span>
           {state?.ignored.length ? (
             <span className="pill pill-critical">
-              {state.ignored.length} result{state.ignored.length === 1 ? "" : "s"} from wallets outside this group not counted
+              {state.ignored.length} result{state.ignored.length === 1 ? "" : "s"} from wallets outside {sandbox ? "the sandbox" : "this group"} not
+              counted
             </span>
           ) : null}
         </div>
@@ -191,11 +254,11 @@ export function Results({ params }: { params?: URLSearchParams } = {}) {
 
       <div className="grid cols-2">
         <ConsensusCard state={state} parties={parties} quorum={quorum} onProof={(title, rows) => setProof({ title, rows })} />
-        <Latest state={state} election={election} coordinator={coordinator.address} opensAt={Number(info.row?.attrs.opens_at ?? 0)} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
+        <Latest state={state} election={election} coordinator={coordinator.address} sandbox={sandbox} opensAt={Number(info.row?.attrs.opens_at ?? 0)} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
         <Missing units={info.units} state={state} />
         <Corrections state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
-        <Suspicious main={state} election={election} coordinator={coordinator.address} onProof={(title, rows) => setProof({ title, rows })} />
-        <Ignored state={state} parties={parties} onProof={(title, rows) => setProof({ title, rows })} />
+        <Suspicious main={state} election={election} coordinator={coordinator.address} sandbox={sandbox} onProof={(title, rows) => setProof({ title, rows })} />
+        <Ignored state={state} parties={parties} sandbox={sandbox} onProof={(title, rows) => setProof({ title, rows })} />
       </div>
 
       <OffArkiv />
@@ -287,15 +350,14 @@ function PanelFoot({ state, panel, note }: { state: PanelState | undefined; pane
       <details>
         <summary>The Arkiv query behind this panel</summary>
         <pre className="code">{renderWhere(panel.query)}
-{panel.trust ? `\nTrusted creators: wallets named in "${panel.trust.addressField}" of entities matching\n${renderWhere(panel.trust.listQuery)}\ncreated by ${panel.trust.rootCreators.join(", ")}` : ""}</pre>
+{panel.trust ? `\nTrusted creators: wallets named in "${panel.trust.addressField}" of entities matching\n${renderWhere(panel.trust.listQuery)}\ncreated by ${panel.trust.rootCreators.join(", ")}` : ""}
+{panel.trust?.selfRegistration ? `\nPlus each wallet named in "${panel.trust.selfRegistration.addressField}" of an entity matching\n${renderWhere(panel.trust.selfRegistration.listQuery)}\nthat the same wallet created ($creator), from any wallet` : ""}</pre>
       </details>
     </div>
   )
 }
 
 type ProofHandler = (title: string, rows: Row[]) => void
-
-const who = (r: Row) => nameOf(r.creator) ?? r.creator.slice(0, 10)
 
 /**
  * Viewers already choose whom to trust; this lets them also raise the bar for how many of those
@@ -469,7 +531,7 @@ const submitted = (r: Row) => Number(r.attrs.submitted_at ?? 0)
  * panel already holds, so every window, and every live update, costs no extra query. The exact
  * Arkiv query is shown below the card, and "Open in Studio" runs it on Arkiv.
  */
-function Latest({ state, election, coordinator, opensAt, parties, onProof }: { state: PanelState | undefined; election: string; coordinator: string; opensAt: number; parties: Party[]; onProof: ProofHandler }) {
+function Latest({ state, election, coordinator, sandbox, opensAt, parties, onProof }: { state: PanelState | undefined; election: string; coordinator: string; sandbox: boolean; opensAt: number; parties: Party[]; onProof: ProofHandler }) {
   const [choice, setChoice] = useState<string | undefined>()
   const trusted = state?.rows ?? []
   // Rounded to the minute so the query shown below stays stable while the page is open.
@@ -477,7 +539,7 @@ function Latest({ state, election, coordinator, opensAt, parties, onProof }: { s
   const newest = trusted.reduce((m, r) => Math.max(m, submitted(r)), 0)
   const span = WINDOWS.find((w) => w.id === choice) ?? autoWindow(newest, now)
   const since = span.seconds === undefined ? opensAt : now - span.seconds
-  const panel = useMemo(() => latestPanel(election, coordinator, since), [election, coordinator, since])
+  const panel = useMemo(() => latestPanel(election, coordinator, since, sandbox), [election, coordinator, since, sandbox])
   const rows = trusted.filter((r) => submitted(r) > since).sort((a, b) => submitted(b) - submitted(a))
   return (
     <section className="card" aria-labelledby="latest-h">
@@ -504,7 +566,7 @@ function Latest({ state, election, coordinator, opensAt, parties, onProof }: { s
                 {r.attrs.type === "correction" ? " (correction)" : ""}
               </button>
               <span className="meta">
-                {nameOf(r.creator) ?? r.creator.slice(0, 10)} · {timeAgo(Number(r.attrs.submitted_at ?? 0))}
+                {who(r)} · {timeAgo(Number(r.attrs.submitted_at ?? 0))}
               </span>
               <span className="meta" style={{ flexBasis: "100%" }}>{figures(r, parties)}</span>
             </li>
@@ -563,7 +625,7 @@ function Corrections({ state, parties, onProof }: { state: PanelState | undefine
               <button type="button" className="link-btn" onClick={() => onProof(`${original.attrs.unit_code}: original and correction`, [original, by])}>
                 {String(original.attrs.unit_code)}
               </button>
-              <span className="meta">{nameOf(by.creator) ?? by.creator.slice(0, 10)}</span>
+              <span className="meta">{who(by)}</span>
               <span className="meta" style={{ flexBasis: "100%" }}>
                 <s>{figures(original, parties)}</s>
                 <br />
@@ -604,14 +666,14 @@ function useSeen(ref: RefObject<HTMLElement>): boolean {
  * and applies the trust list locally, so both observer groups share the one read. Results posted
  * after its snapshot arrive through the main panel's live updates, so it never queries again.
  */
-function Suspicious({ main, election, coordinator, onProof }: { main: PanelState | undefined; election: string; coordinator: string; onProof: ProofHandler }) {
+function Suspicious({ main, election, coordinator, sandbox, onProof }: { main: PanelState | undefined; election: string; coordinator: string; sandbox: boolean; onProof: ProofHandler }) {
   const [threshold, setThreshold] = useState(8)
   const ref = useRef<HTMLElement>(null)
   const seen = useSeen(ref)
   const limited = useRateLimited()
-  const fetched = useMemo(() => ({ ...suspiciousPanel(election, coordinator, LOWEST), includeIgnored: true }), [election, coordinator])
+  const fetched = useMemo(() => ({ ...suspiciousPanel(election, coordinator, LOWEST, sandbox), includeIgnored: true }), [election, coordinator, sandbox])
   const { state } = usePanel(collate, seen ? fetched : undefined)
-  const panel = useMemo(() => suspiciousPanel(election, coordinator, threshold), [election, coordinator, threshold])
+  const panel = useMemo(() => suspiciousPanel(election, coordinator, threshold, sandbox), [election, coordinator, threshold, sandbox])
   const rows = useMemo(() => {
     if (state?.status !== "ready") return []
     const known = new Set(state.rows.map((r) => r.key))
@@ -657,7 +719,7 @@ function Suspicious({ main, election, coordinator, onProof }: { main: PanelState
   )
 }
 
-function Ignored({ state, parties, onProof }: { state: PanelState | undefined; parties: Party[]; onProof: ProofHandler }) {
+function Ignored({ state, parties, sandbox, onProof }: { state: PanelState | undefined; parties: Party[]; sandbox: boolean; onProof: ProofHandler }) {
   const [all, setAll] = useState(false)
   // Strangers first (wallets no group accredited), then other groups' observers.
   const known = new Set(deployment.observers.map((o) => o.address))
@@ -667,10 +729,14 @@ function Ignored({ state, parties, onProof }: { state: PanelState | undefined; p
   return (
     <section className="card" aria-labelledby="ignored-h">
       <div className="card-head">
-        <CardTitle icon="ban" id="ignored-h">Not counted for this group</CardTitle>
+        <CardTitle icon="ban" id="ignored-h">Not counted {sandbox ? "in the sandbox" : "for this group"}</CardTitle>
         {state?.status === "ready" && <span className="pill">{sorted.length}</span>}
       </div>
-      <p className="muted">Anyone can write to Arkiv. Results from wallets this group did not accredit, whether another group's observers or a stranger, are listed here and never counted in this view.</p>
+      <p className="muted">
+        {sandbox
+          ? `Results from wallets that ${groupA.name} did not accredit and that did not register themselves, including any registration made for someone else, are listed here and never counted in this view.`
+          : "Anyone can write to Arkiv. Results from wallets this group did not accredit, whether another group's observers, a sandbox tester or a stranger, are listed here and never counted in this view."}
+      </p>
       {state?.status !== "ready" ? (
         <Skeleton lines={2} />
       ) : ignored.length === 0 ? (
@@ -682,7 +748,7 @@ function Ignored({ state, parties, onProof }: { state: PanelState | undefined; p
               <button type="button" className="link-btn" onClick={() => onProof(`${r.attrs.unit_code}: not counted`, [r])}>
                 {String(r.attrs.unit_code)}
               </button>
-              <span className="meta">{nameOf(r.creator) ?? r.creator.slice(0, 10)}</span>
+              <span className="meta">{who(r)}</span>
               <span className="meta" style={{ flexBasis: "100%" }}>{figures(r, parties)}</span>
             </li>
           ))}
@@ -720,7 +786,7 @@ function ProofDialog({ proof, parties, block, onClose }: { proof: Proof; parties
       title={proof.title}
       rows={proof.rows}
       explorer={collate.explorer}
-      nameOf={nameOf}
+      nameOf={observerName}
       currentBlock={block}
       describe={(r) => figures(r, parties)}
       onClose={onClose}

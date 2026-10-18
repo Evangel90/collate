@@ -3,7 +3,7 @@
  * stays the contract: the form is one way to write it, the JSON editor is another, and anything the
  * form cannot show (nested and/or groups) is kept verbatim rather than dropped.
  */
-import { createdByAny, eq, or, renderWhere, v, type Panel, type PanelState, type TypedValue, type Where, type WhereValue } from "@collate/core"
+import { createdByAny, eq, or, renderWhere, v, type Panel, type PanelState, type SelfRegistration, type TypedValue, type Where, type WhereValue } from "@collate/core"
 
 /** `quorum` lands in core's Panel type in a parallel change; until then it rides along untyped. */
 export type StudioPanel = Panel & { quorum?: number }
@@ -32,7 +32,8 @@ export type Draft = {
   creators: string[]
   /** Predicates the form cannot show, kept as they are. */
   extra: Where[]
-  trust: { roots: string[]; listFilters: Filter[]; listExtra: Where[]; addressField: string; labelField: string }
+  /** `selfRegistration` is passed through untouched: set from JSON, not from the form. */
+  trust: { roots: string[]; listFilters: Filter[]; listExtra: Where[]; addressField: string; labelField: string; selfRegistration?: SelfRegistration }
   includeIgnored: boolean
   groupBy: string
   sum: string[]
@@ -110,6 +111,7 @@ export function panelToDraft(panel: StudioPanel): Draft {
       listExtra: list.extra,
       addressField: panel.trust?.addressField ?? "",
       labelField: panel.trust?.labelField ?? "",
+      selfRegistration: panel.trust?.selfRegistration,
     },
     includeIgnored: panel.includeIgnored ?? false,
     groupBy: panel.groupBy ?? "",
@@ -212,6 +214,7 @@ export function draftToPanel(d: Draft): StudioPanel {
       listQuery,
       addressField: d.trust.addressField.trim(),
       ...(d.trust.labelField.trim() ? { labelField: d.trust.labelField.trim() } : {}),
+      ...(d.trust.selfRegistration ? { selfRegistration: d.trust.selfRegistration } : {}),
     }
   }
   if (d.supersedeField.trim()) panel.supersedeField = d.supersedeField.trim()
