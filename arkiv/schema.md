@@ -122,6 +122,6 @@ Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.ne
 
 **Deliberately not used:** ownership transfer and `ownedBy()` (no product need), patches (results are immutable by design).
 
-## Known limits
+## How revocation works
 
-- An accreditation's expiry or deletion stops its observer's results counting for that group, including results posted while accredited. Coordinators extend leases while counting continues.
+An accreditation is a lease. When a coordinator deletes it (Revoke) or lets it expire, that observer's results stop counting in the coordinator's view straight away, including results posted while the observer was accredited, because trust is resolved from the accreditations that exist now. Coordinators extend leases while counting continues; the results themselves stay on Arkiv, readonly, and other groups that accredit the same wallet keep counting them.
