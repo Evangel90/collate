@@ -69,8 +69,7 @@ export function App() {
           <p>
             Collate and Collate Studio run on one open engine, collate-core. Every number is read straight from Arkiv's public RPC
             on the Tiramisu testnet (chain 7738577). There is no Collate server: anyone can serve this page, fork it, or query the
-            same entities directly. Testnet block production is still centralised, so the claim is "readable and verifiable by
-            anyone without our backend", not "impossible to stop".
+            same entities directly.
           </p>
           <p>
             Not a real election: every result, party, ward, polling unit and observer is synthetic; only the state and LGA names are

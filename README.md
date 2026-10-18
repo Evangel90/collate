@@ -26,8 +26,6 @@ When an official results portal stalls, the public loses sight of the count exac
 - **Every number** opens a proof dialog: the creator wallet, the entity on the explorer and its expiry. Results are created with permissionless extension, so **anyone** can keep them alive.
 - **No backend.** The app is a static build that talks only to Arkiv's public RPC. Take our site down and anyone can serve the same page, or query the entities directly, and see the same numbers.
 
-Honest limits: Arkiv's block production is still centralised during testnet, so the claim is "readable and verifiable by anyone without our backend", not "impossible to stop". A quorum does not protect against a corrupt coordinator or *N* colluding observers; the defence is that viewers choose whom to trust and every result, outlier and correction stays on the record.
-
 ## Collate Studio: the read side for Arkiv
 
 Arkiv's [ecosystem page](https://hub.arkiv.network/ecosystem) lists gaps across 116 projects under "Nobody built this yet". One of them is a **Query-to-Dashboard Studio**: "Every project here writes entities in — nobody ships the read side." Studio is that read side:

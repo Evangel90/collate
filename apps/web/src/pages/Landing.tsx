@@ -314,10 +314,10 @@ const STEPS: { title: string; body: ReactNode; link: { label: string; to: string
     body: (
       <>
         MetaMask, Rabby or any browser wallet. Collate asks it to add or switch to Arkiv Tiramisu (chain 7738577). Writes need test
-        ETH, free from the <a href={FAUCET} target="_blank" rel="noreferrer">Arkiv faucet</a>.
+        GLM, free from the <a href={FAUCET} target="_blank" rel="noreferrer">Arkiv faucet</a>.
       </>
     ),
-    link: { label: "Get test ETH", to: FAUCET, external: true },
+    link: { label: "Get test GLM", to: FAUCET, external: true },
   },
   {
     title: "Create an election and set its quorum",
@@ -368,7 +368,7 @@ function RunYourOwn() {
         ))}
       </ol>
       <p className="notice">
-        Each wallet that writes (coordinator and observers) needs a little test ETH on Tiramisu. Fund it at{" "}
+        Each wallet that writes (coordinator and observers) needs a little test GLM on Tiramisu. Fund it at{" "}
         <a href={FAUCET} target="_blank" rel="noreferrer">
           hub.arkiv.network/faucet
         </a>
@@ -527,38 +527,21 @@ function WhyArkiv() {
         ))}
       </div>
 
-      <div className="arkiv-grid">
-        <div className="card">
-          <CardTitle icon="database">Kept off Arkiv</CardTitle>
-          <div className="off-table" role="table" aria-label="What stays off Arkiv">
-            <div className="off-row off-row-head" role="row">
-              <span role="columnheader">What</span>
-              <span role="columnheader">Why</span>
-              <span role="columnheader">Where instead</span>
-            </div>
-            {OFF.map((o) => (
-              <div key={o.what} className="off-row" role="row">
-                <b role="cell">{o.what}</b>
-                <span role="cell">{o.why}</span>
-                <span role="cell" className="off-where">{o.where}</span>
-              </div>
-            ))}
+      <div className="card">
+        <CardTitle icon="database">Kept off Arkiv</CardTitle>
+        <div className="off-table" role="table" aria-label="What stays off Arkiv">
+          <div className="off-row off-row-head" role="row">
+            <span role="columnheader">What</span>
+            <span role="columnheader">Why</span>
+            <span role="columnheader">Where instead</span>
           </div>
-        </div>
-
-        <div className="card limits-card">
-          <CardTitle icon="alert" tone="critical">Honest limits</CardTitle>
-          <ul className="list-plain">
-            <li>
-              Arkiv's testnet block production is centralised. Collate is readable and verifiable by anyone without our backend; it
-              is not impossible to stop.
-            </li>
-            <li>
-              A quorum does not protect against a corrupt coordinator, or against N members who collude. The defence is that viewers
-              choose whom to trust, and every report, outlier and correction stays on the record.
-            </li>
-            <li>All results are synthetic: fictional parties, polling units and observers known only by wallet and alias, set in real Nigerian states and LGAs. It is not a real election.</li>
-          </ul>
+          {OFF.map((o) => (
+            <div key={o.what} className="off-row" role="row">
+              <b role="cell">{o.what}</b>
+              <span role="cell">{o.why}</span>
+              <span role="cell" className="off-where">{o.where}</span>
+            </div>
+          ))}
         </div>
       </div>
     </section>

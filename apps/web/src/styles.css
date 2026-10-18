@@ -372,17 +372,15 @@ footer.site { margin-top: 48px; padding: 20px 0 8px; border-top: 1px solid var(-
 
 /* Why Arkiv */
 .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; }
-.arkiv-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .off-table { display: grid; font-size: 13px; }
 .off-row { display: grid; grid-template-columns: 1.1fr 1.4fr 1.2fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
 .off-row:last-child { border-bottom: none; }
 .off-row b { color: var(--ink); font-weight: 600; }
 .off-row-head { padding-top: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .off-where { color: var(--ink); }
-.limits-card { background: linear-gradient(160deg, color-mix(in srgb, var(--critical-bg) 55%, var(--surface)), var(--surface) 55%); }
 
 @media (max-width: 960px) {
-  .landing-hero, .engine-grid, .arkiv-grid { grid-template-columns: minmax(0, 1fr); }
+  .landing-hero, .engine-grid { grid-template-columns: minmax(0, 1fr); }
   .consensus-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
   .engine-diagram { grid-template-columns: minmax(0, 1fr); }
   .engine-arrow { justify-self: center; width: 2px; height: 28px; margin: 6px 0; }

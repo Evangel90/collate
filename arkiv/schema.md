@@ -116,4 +116,3 @@ Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.ne
 ## Known limits
 
 - An accreditation's expiry or deletion stops its observer's results counting for that group, including results posted while accredited. Coordinators extend leases while counting continues.
-- Block production on Tiramisu is centralised during testnet. The claim is "readable and verifiable by anyone without our backend", not "impossible to stop".
