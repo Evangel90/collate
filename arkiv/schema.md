@@ -34,7 +34,7 @@ Parties are fictional and fixed to three slots (`votes_a`, `votes_b`, `votes_c`)
    - **pending** when not certified and fewer than `quorum` creators have reported. Not counted.
    - **contested** otherwise. Shown with every version, not counted.
 
-   `quorum` defaults to 1, so one report counts, one against one is contested and two against one counts with one outlier. The election payload's optional `quorum` sets the starting value; each viewer can raise or lower it (1–3) on the results page, which recomputes in the browser without new queries. One bad observer can no longer block a unit that a majority agrees on.
+   `quorum` defaults to 1, so one report counts, one against one is contested and two against one counts with one outlier. The election payload's optional `quorum` sets the starting value; each viewer can raise or lower it on the results page (from 1 up to the most observers that reported any one unit, at most 9), which recomputes in the browser without new queries. One bad observer can no longer block a unit that a majority agrees on.
 4. **Totals** by state, LGA and ward are summed in the browser from certified units only.
 
 ## Not stored, computed in the browser
@@ -76,7 +76,7 @@ Tiramisu prices every anonymous `arkiv_query` at a flat 100 cost units however m
 | Results, the coordinator accredits or revokes | 2 + 3 | 2 (trust and results, read fresh) |
 | Results → "Open in Studio" | 2 | 0 within 90 s |
 | Observer page (after connecting) | 3 | 2 (the wallet's own read also finds its sandbox registration); after posting, 1; after joining the sandbox, 2 (own entities and Q10, both fresh). The GLM balance check is `eth_getBalance`, not a metered query |
-| Coordinator console | 5 | 2, or 0 within 90 s of viewing that group on the results page; after each write 1, plus 2 when the trust list changed |
+| Coordinator console | 5 | 1 to list your elections (elections, units and accreditations you created, in one read; it also answers each election's setup); 0 to open an election or move between steps 1–3; 1 for the Share step's progress (0 if the results page read it within 90 s); 1 fresh read after each write |
 | Studio, shared link or preset | 2 per panel with a trust list, 1 without | the same for a new query, 0 for any query the session already read (including narrower ones such as "Polling units" after the results page); a dashboard of N panels costs one read per distinct query |
 | Reload within 90 s | as first load | 0 (snapshots persist in `sessionStorage`) |
 
@@ -95,8 +95,8 @@ Every paginated walk reads one block (`.atBlock(n)`) and follows `QueryResult.ne
 
 | Who | What | How |
 | --- | --- | --- |
-| Coordinator | Election + all its units (+ accreditations in the seed) | One `executeBatch` of creates, so the election appears complete or not at all. Tiramisu refused an 81-create batch without a reason ([friction #11](friction.md)), so the seed falls back to atomic chunks of 15; the 72-unit demo landed that way |
-| Coordinator | Accredit / extend lease / revoke | `createEntity` / `extendEntity` (`ExpirationTime.atBlock(expiresAt + 7 days)`) / `deleteEntity` |
+| Coordinator | Election + all its units (+ accreditations in the seed) | One `executeBatch` of creates, so the election appears complete or not at all. Tiramisu refused an 81-create batch without a reason ([friction #11](friction.md)), so the seed and the coordinator console both fall back to atomic chunks of 15: they re-read what exists and send only what is missing, and stop with the transaction link if an outcome is unknown instead of resending. The 72-unit demo landed that way |
+| Coordinator | Accredit (one, or several in one `executeBatch`) / extend lease / revoke | `createEntity` or `executeBatch` / `extendEntity` (`ExpirationTime.atBlock(expiresAt + 7 days)`) / `deleteEntity` |
 | Anyone | Join the Open sandbox | `createEntity` of a `sandbox_registration` from their own wallet, `flags: { readonly: true }` |
 | Observer | Result or correction | `createEntity` with `flags: { readonly: true, permissionlessExtension: true }` |
 | Anyone | Keep a result alive | `extendEntity` (`ExpirationTime.atBlock(expiresAt + 30 days)`) |
